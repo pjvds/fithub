@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# SST
+.sst/
+sst-env.d.ts
+
+# Wrangler (only present if developer installs Wrangler locally for ad-hoc ops)
+.wrangler/
+.dev.vars
+
+# Drizzle
+drizzle/migrations/meta/_journal.json.bak
+
+# Astro (web/)
+.astro/
+web/.astro/
+web/dist/
+
+# Future: Mobile (postponed — see .specify/specs/004-apple-health-integration for archived context)
+# Uncomment when a native mobile client is on the roadmap.
+# mobile/.dart_tool/
+# mobile/.flutter-plugins
+# mobile/.flutter-plugins-dependencies
+# mobile/.packages
+# mobile/build/
+# mobile/ios/Pods/
+# mobile/ios/.symlinks/
+# mobile/android/.gradle/
+# mobile/android/local.properties
+
+# Test/coverage
+coverage/
+.vitest-cache/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

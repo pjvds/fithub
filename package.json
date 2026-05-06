@@ -1,0 +1,47 @@
+{
+  "name": "fithub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FitHub — hybrid fitness data sync platform (backend foundation)",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "sst dev",
+    "deploy": "sst deploy",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:bench": "vitest bench --run",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.30.0",
+    "eslint": "^9.0.0",
+    "sst": "^4.12.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.0",
+    "@vitest/coverage-v8": "^4.0.0"
+  },
+  "dependencies": {
+    "@fithub/core": "*",
+    "@fithub/functions": "*",
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "drizzle-orm": "^0.45.0",
+    "hono": "^4.12.0",
+    "zod": "^4.0.0",
+    "@openauthjs/openauth": "^0.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
