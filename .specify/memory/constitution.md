@@ -1,16 +1,23 @@
-<!-- 
+<!--
 SYNC IMPACT REPORT
-Version: 1.0.0 (initial)
-Date: 2026-05-05
-Impact: Initial constitution creation for FitHub speckit project
-- Established 7 core governance principles aligned with project vision
-- No dependent templates migrated yet (first constitution)
-- Manual follow-up: Create plan-template.md, spec-template.md, tasks-template.md when ready
+Version: 1.0.0 → 1.1.0 (MINOR: new principle added)
+Date: 2026-05-06
+Impact: Added Principle 8 — Functional & Structured Logging.
+- Added principle: 8. Functional & Structured Logging
+- Renumbered: none (appended at end)
+- Removed: none
+- Templates updated:
+  - ✅ .specify/templates/plan-template.md (added Principle 8 compliance section)
+  - ✅ .specify/templates/spec-template.md (added Principle 8 alignment checklist; updated principle count 7 → 8)
+  - ✅ .specify/memory/architecture-overview.md (updated principle count reference 7 → 8)
+- Templates not requiring changes:
+  - .specify/templates/tasks-template.md (task categorization remains valid; logging tasks may be added per-feature when relevant)
+- Follow-up TODOs: none
 -->
 
 # FitHub Project Constitution
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Ratification Date:** 2026-05-05  
 **Last Amended:** 2026-05-06
 
@@ -123,6 +130,23 @@ This constitution serves as the reference for all specification, planning, and i
 - Technical status page MUST be maintained to show platform availability and sync health.
 
 **Rationale:** Trust is foundational for a data-handling product. Transparent communication reduces user anxiety and builds long-term loyalty.
+
+---
+
+### 8. Functional & Structured Logging
+
+**Core Rule:** All services MUST emit logs as structured, machine-parseable records (JSON or equivalent) describing functional events — what happened, for whom, and why — rather than ad-hoc free-text strings. Logs are a first-class observability product, not a debugging afterthought.
+
+**Specifics:**
+- Every log entry MUST include: ISO-8601 timestamp, severity level (`debug` | `info` | `warn` | `error`), service/module name, environment/stage, and a correlation/request ID where one exists.
+- Logs MUST be **functional**: describe the business or domain event (e.g., `activity.synced`, `connection.refresh.failed`), not implementation noise (`"about to call function X"`).
+- Logs MUST be **structured**: emit key/value fields rather than concatenating values into messages. Downstream tooling MUST be able to filter and aggregate without regex on free text.
+- Sensitive data MUST NEVER be logged: no access/refresh tokens, no full OAuth payloads, no raw activity files, no PII beyond a stable internal `userId`. Token vault inputs and outputs are explicitly forbidden.
+- `error` level logs MUST include an error code or typed identifier so they can be aggregated and alerted on; stack traces SHOULD be attached when available.
+- Cross-service flows (sync, webhook handling, queue consumers) MUST propagate a correlation ID so a single user-visible operation can be traced end-to-end.
+- Audit-relevant events (consent changes, token rotations, connection lifecycle, data exports/deletes) MUST also be persisted via the audit log module, in addition to operational logging.
+
+**Rationale:** A fitness sync platform spans many asynchronous hops (API → queue → worker → external platform → webhook). Free-text logs make incidents undebuggable; structured functional logs make support, alerting, and compliance review tractable, and reduce the temptation to leak sensitive data into a string interpolation.
 
 ---
 

@@ -355,4 +355,4 @@ Specs/plans/tasks for backend foundation (`000-backend-foundation`) and web fron
 ---
 
 **Approved by:** User decision via speckit-analyze remediation
-**Constitution alignment:** ✅ All 7 principles compatible
+**Constitution alignment:** ✅ All 8 principles compatible

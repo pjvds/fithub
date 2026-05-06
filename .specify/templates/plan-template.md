@@ -191,6 +191,17 @@ Review this plan against each principle. Document compliance strategy or deviati
 
 **Deviations (if any):** [If this feature deviates from principle, explain why and what approval is needed]
 
+### 8. Functional & Structured Logging
+**Compliance Strategy:**
+- [ ] Event Vocabulary: [List of functional events this feature emits, e.g. `activity.synced`, `connection.refresh.failed`]
+- [ ] Required Fields: [Confirm timestamp, level, service, env, correlation/request ID, userId are emitted]
+- [ ] Sensitive-Data Review: [Confirm tokens, raw payloads, and PII beyond `userId` are NOT logged]
+- [ ] Error Codes: [Typed error codes/identifiers attached to `error`-level entries]
+- [ ] Correlation: [How are correlation IDs propagated across queues/workers/external calls?]
+- [ ] Audit vs. Operational: [Which events also require an audit_log entry?]
+
+**Deviations (if any):** [If this feature deviates from principle, explain why and what approval is needed]
+
 ---
 
 ## Implementation Breakdown

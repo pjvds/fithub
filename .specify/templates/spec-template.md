@@ -58,7 +58,7 @@ so that [OUTCOME].
 
 ## Constitution Alignment Checklist
 
-Review your feature against FitHub's 7 governance principles. For each principle, note how the feature complies or flag concerns.
+Review your feature against FitHub's 8 governance principles. For each principle, note how the feature complies or flag concerns.
 
 ### ✅ Data Privacy & Security
 - [ ] User data is encrypted at rest (AES-256 minimum)
@@ -108,6 +108,14 @@ Review your feature against FitHub's 7 governance principles. For each principle
 - [ ] Privacy/data handling implications documented
 - [ ] Known limitations or caveats identified
 - [ ] Release notes content drafted
+- **Notes:** [Any concerns or deviations?]
+
+### ✅ Functional & Structured Logging
+- [ ] Functional events emitted by this feature are listed (e.g. `activity.synced`, `connection.refresh.failed`)
+- [ ] All log entries are JSON-structured with timestamp, level, service, env, correlation/request ID, userId
+- [ ] No tokens, raw third-party payloads, or PII beyond `userId` appear in logs
+- [ ] `error`-level logs carry typed error codes for alerting/aggregation
+- [ ] Audit-relevant events (consent, token rotation, connection lifecycle) also write to audit_log
 - **Notes:** [Any concerns or deviations?]
 
 ---
