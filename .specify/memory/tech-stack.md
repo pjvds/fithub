@@ -224,6 +224,24 @@ This **supersedes** the earlier "local-first, no backend until v2+" and the May 
 
 ---
 
+## Observability & Log Aggregation
+
+**Decision (M5, 2026-05-06):** Cloudflare Workers emit JSON-structured logs (see `packages/core/src/logging/logger.ts`). These are shipped to an external aggregator using **Cloudflare Logpush** (Workers Trace Events).
+
+**Chosen aggregator: Better Stack (Logtail)**
+- Receives structured JSON over HTTPS from Cloudflare Logpush
+- 30-day hot retention for operational queries and alerting
+- Aggregate metrics: poll success/fail rates, push delivery rates, dedup match rates
+- Alert channels: email + webhook (Slack) on SLO violations (error rate >1% per 5 min, queue depth >1000)
+- Rationale: GDPR-compliant (EU region available), generous free tier for early-stage, native structured-JSON ingest, no agent required
+
+**Alternatives considered:**
+- Datadog: too expensive for early stage
+- Axiom: good fit but tighter CF integration, revisit at scale
+- Self-hosted Loki: adds ops burden — rejected
+
+---
+
 ## Deployment Pipeline
 
 **Backend + Web (single SST app):**

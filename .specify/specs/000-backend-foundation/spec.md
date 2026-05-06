@@ -63,7 +63,7 @@ This is a prerequisite for `001-user-authentication` and all three platform-inte
 
 A backend service exposing a REST API to authenticated clients (web in v1; mobile in a future release), containing five core subsystems:
 
-1. **API Gateway** — Authenticated REST endpoints for mobile clients.
+1. **API Gateway** — Authenticated REST endpoints for clients (web in v1; mobile in v2+).
 2. **OAuth Token Vault** — Encrypted storage and lifecycle management of platform tokens.
 3. **Sync Orchestrator** — Schedules platform polls, handles webhooks, manages retries.
 4. **Deduplication Engine** — Matches activities across sources, merges into canonical records.
@@ -101,7 +101,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 
 **Acceptance Criteria**
 
-- [ ] AC-1: A mobile client can complete an OAuth flow for a cloud platform; tokens are stored server-side, never returned to the client.
+- [ ] AC-1: A web client can complete an OAuth flow for a cloud platform; tokens are stored server-side, never returned to the client.
 - [ ] AC-2: Backend polls Zwift every 30 minutes (±1 min) for each connected user and stores new activities.
 - [ ] AC-3: Backend processes Strava webhook events within 30 seconds of receipt and fetches activity details.
 - [ ] AC-4: *(DEFERRED — mobile v2+)* Mobile client can upload an Apple Health activity payload; backend persists raw payload and canonical fields.
@@ -121,7 +121,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 - [x] Data transmission uses TLS 1.3+ — Enforced on all backend endpoints and external platform calls
 - [x] User consent is explicit and revocable — OAuth flow + disconnect endpoint
 - [x] Third-party integrations vetted for security — Zwift, Strava OAuth flows follow RFC 6749 + 7636 (PKCE)
-- **Notes:** OAuth tokens never leave backend boundary. Mobile receives only opaque session tokens (FitHub's own auth).
+- **Notes:** OAuth tokens never leave backend boundary. Web client receives only session cookies (FitHub's own auth).
 
 ### ✅ Cross-Platform Integration
 - [x] Adapter/integration follows platform-specific API requirements — Per-platform adapter modules
@@ -131,11 +131,11 @@ so that I have a single, unified workout history regardless of how I access FitH
 - **Notes:** Centralized rate-limit handling is a key benefit of backend-driven architecture.
 
 ### ✅ User Experience & Simplicity
-- [x] Onboarding/setup completable in <5 minutes — OAuth flow proxied through backend, redirects to mobile app
-- [x] Error messages are clear and actionable — API returns user-safe error codes; mobile maps to friendly text
+- [x] Onboarding/setup completable in <5 minutes — OAuth flow proxied through backend, redirects to web app
+- [x] Error messages are clear and actionable — API returns user-safe error codes; web client maps to friendly text
 - [x] Advanced options hidden by default — N/A (no UI in this feature)
 - [x] Fewer than 3 taps/clicks for core action — Mobile UI handles UX; backend supports it
-- **Notes:** This feature has no direct UI but must support fast, low-friction mobile flows.
+- **Notes:** This feature has no direct UI but must support fast, low-friction client flows.
 
 ### ✅ Reliability & Uptime
 - [x] Offline scenarios handled — Mobile cache; backend Cloudflare Queues persist across Worker evictions
@@ -154,7 +154,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 ### ✅ Code Quality & Testing
 - [x] Unit test coverage target ≥80%
 - [x] Integration test scenarios identified — OAuth flow, webhook handling, dedup engine
-- [x] E2E test plan defined — Mock platform → backend → mobile fixture
+- [x] E2E test plan defined — Mock platform → backend → web client fixture
 - [x] Code review process enforced in PR
 - [x] Static analysis (linting, type-checking) requirements listed — Per chosen language stack
 - **Notes:** Dedup engine requires extensive unit tests across confidence-score boundaries.
@@ -275,7 +275,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 
 - **NFR-1 (Security):** All tokens AES-256-GCM encrypted at rest (app-layer); master key stored in Workers Secrets with versioned ciphertext format (`v1:iv:ciphertext:tag`) supporting key rotation.
 - **NFR-2 (Availability):** 99.5% uptime SLO measured monthly; planned maintenance excluded.
-- **NFR-3 (Latency):** Mobile-facing read endpoints P95 <500ms; mobile-facing write endpoints P95 <1s.
+- **NFR-3 (Latency):** Client-facing read endpoints P95 <500ms; client-facing write endpoints P95 <1s.
 - **NFR-4 (Throughput):** Support 10,000 concurrent users with 30-min poll cadence (≈5.5 polls/sec aggregate baseline).
 - **NFR-5 (Scalability):** Horizontal scale of stateless API gateway; sync orchestrator partitionable by user_id.
 - **NFR-6 (Observability):** All Workers MUST emit JSON-structured operational logs with required fields (`ts`, `level`, `event`, `service`, `env`, `correlationId`, `userId` when known). Functional event names MUST come from a documented vocabulary (e.g. `auth.token.rejected`, `oauth.refresh.failed`, `sync.job.completed`); `error`-level entries MUST carry a typed `code`. Correlation IDs MUST flow from the API request through queue messages and CloudEvents envelopes so a single user-visible operation can be traced end-to-end. Logs MUST be shipped to a log aggregator with 30-day hot retention and aggregate metrics for poll success/fail rates, push delivery rates, dedup match rates; alerts on SLO violations. (Constitution Principle 8.)
@@ -361,12 +361,11 @@ See `.specify/memory/architecture-overview.md` for the full system diagram. The 
 
 1. **Phase 1 — Skeleton & Persistence:** Project structure, DB schema, migration runner, basic API gateway with health check.
 2. **Phase 2 — OAuth Vault & Adapter Interface:** Token storage with encryption, platform adapter interface, mock adapter for tests.
-3. **Phase 3 — First Real Adapter (Zwift) + Polling:** Concrete Zwift adapter, sync orchestrator with cron-like poller, retry queue.
-4. **Phase 4 — Strava Webhooks + Adapter:** Strava adapter, webhook ingestion endpoint, fallback poll.
+3. **Phase 3 — Platform Connections:** Platform OAuth connections (initiate, callback, list, disconnect), concrete Zwift + Strava adapters, token refresh logic.
+4. **Phase 4 — Sync Orchestrator:** Cron poller (Zwift), Strava webhook ingestion, sync worker, retry queue, rate-limit budget.
 5. **Phase 5 — Deduplication Engine:** Scoring algorithm, merge logic, pending-confirmation surface.
 6. **Phase 6 — Push Notification Service:** APNs/FCM integration, device token registry.
-7. **Phase 7 — Apple Health Ingestion Endpoint:** `POST /api/health/upload`, validation, dedup, push.
-8. **Phase 8 — Hardening:** Observability, alerts, load tests, security review.
+7. **Phase 7 — Hardening & Compliance:** Observability, alerts, GDPR export/delete, audit log archival, load tests, security review.
 
 **Dependencies & Blockers:**
 
@@ -411,9 +410,11 @@ See `.specify/memory/architecture-overview.md` for the full system diagram. The 
 
 **End-to-End Tests:**
 
-- Mobile fixture connects Zwift → backend polls → mobile receives push → fetches activities → displays
-- Same activity arrives from Zwift and Strava → dedup auto-merges → mobile shows one activity with two source badges
-- Activity from Apple Watch (Apple Health) and Strava → dedup decides → mobile reflects decision
+> **Note (E1 — OAuth callback model):** The backend `POST /api/connections/:platform/oauth/callback` endpoint is never the direct browser redirect target. The OAuth provider redirects to the **Astro web frontend** (`GET /oauth/callback?code=&state=`), which then calls `POST /api/connections/:platform/oauth/callback` server-side. All E2E tests should reflect this two-hop model, routing the OAuth redirect through the web fixture before calling the backend.
+
+- Web client fixture connects Zwift → backend polls → user fetches activities → displays
+- Same activity arrives from Zwift and Strava → dedup auto-merges → web shows one activity with two source badges
+- Activity from Apple Watch (Apple Health) and Strava → dedup decides → web reflects decision
 - Worker eviction mid-sync → in-flight jobs resume from durable Cloudflare Queues
 
 **Manual / Operational Testing:**
@@ -442,7 +443,7 @@ See `.specify/memory/architecture-overview.md` for the full system diagram. The 
 ## Open Questions & Decisions
 
 - **Q1: Backend tech stack (language, framework, hosting platform)?**
-  - **Resolution:** To be decided during plan phase via `speckit-plan` skill. Locked decision will be added to `.specify/memory/tech-stack.md`.
+  - **Resolution:** TypeScript + Hono + SST v4 (Ion) on Cloudflare Workers / D1 / Queues / R2. Decision locked and recorded in `.specify/memory/tech-stack.md`.
 
 - **Q2: How does FitHub itself authenticate users (separate from platform OAuth)?**
   - **Resolution:** Out of scope for this spec. Assumed to be defined in a future `001-user-authentication` feature. For early phases, a stubbed identity (e.g., dev token) is acceptable.

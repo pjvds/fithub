@@ -68,7 +68,7 @@
 - [X] T011 🧪 Implement Outbox Relay Worker in `packages/functions/src/outbox-relay/index.ts` — Cron-triggered (~5s), queries `outbox_events WHERE processed_at IS NULL`, publishes to event-bus Queue, marks `processed_at` on success
 - [X] T012 🧪 Implement consumer idempotency helper `withIdempotency(consumerName, eventId, db, handler)` in `packages/core/src/events/idempotency.ts` — checks processed_events table before executing handler, inserts row after success
 - [X] T013 🧪 Configure CI: ESLint + `tsc --noEmit` + Vitest + performance regression benchmarks on every PR (GitHub Actions or equivalent) — include Vitest `bench` targets for dedup scorer throughput and sync-job processing latency; fail CI if P95 regresses >10% vs baseline
-- [ ] T014 ✅ Verify: `npx sst dev` provisions all bindings; `curl localhost:8787/health` returns 200; D1 schema applied; outbox relay cron registered (requires Cloudflare credentials — deferred to first deploy)
+- [DEFERRED] T014 ✅ Verify: `npx sst dev` provisions all bindings; `curl localhost:8787/health` returns 200; D1 schema applied; outbox relay cron registered (requires Cloudflare credentials — deferred to first deploy)
 
 ---
 
@@ -86,27 +86,29 @@
 - [X] T017 [P] 🔗 Define `PlatformAdapter` interface in `packages/core/src/adapters/types.ts` — `fetchActivities(token, since?)`, `refreshToken(refreshToken)`, `validateToken(token)`, `revokeToken(token)`; `CanonicalActivity` type
 - [X] T018 [P] 📢 Implement audit log module in `packages/core/src/audit/logger.ts` — `logAuditEvent(db, {userId, eventType, platform, metadata})` inserts into audit_log table; metadata is JSON (no PII, no tokens, no payloads)
 - [X] T019 [P] 🔗 Create mock `PlatformAdapter` for tests in `packages/core/src/adapters/mock-adapter.ts` — returns fixture activities; used in integration tests
-- [X] T020 ✅ Verify: auth middleware rejects unauthenticated requests with 401; token encrypt/decrypt round-trips correctly; audit entries written to D1; all Workers emit JSON logs only (no free-text `console.*`); sample 100 log lines confirms zero token/PII leakage
+- [DEFERRED] T020 ✅ Verify: auth middleware rejects unauthenticated requests with 401; token encrypt/decrypt round-trips correctly; audit entries written to D1; all Workers emit JSON logs only (no free-text `console.*`); sample 100 log lines confirms zero token/PII leakage
 
 
 ---
 
 ## Phase 3: US1 — Register Platform Connection
 
-> **User Story:** "As the FitHub mobile app, I want to register a connection to a cloud platform on the user's behalf, so that the backend can fetch the user's data without storing tokens on-device."
+> **User Story:** "As the FitHub web app, I want to register a connection to a cloud platform on the user's behalf, so that the backend can fetch the user's data without storing tokens client-side."
+>
+> **OAuth flow model (E1 resolution):** The OAuth provider redirects the browser to the **Astro web frontend** via `GET /oauth/callback?code=&state=`. The Astro server-side handler then calls `POST /api/connections/:platform/oauth/callback` on the backend API. The backend endpoint therefore correctly accepts `POST`. This is the canonical two-hop model for `005-web-frontend`.
 >
 > **Acceptance Criteria:** AC-1 (OAuth flow, tokens server-side), AC-9 (invalid token flagged for re-auth), AC-10 (disconnect + revoke)
 >
 > **Independent test:** Complete an OAuth flow for Zwift and Strava; verify tokens encrypted in D1; disconnect and verify token deleted + platform revoked.
 
-- [ ] T021 🔗 [US1] Implement `POST /api/connections/:platform/oauth/initiate` in `packages/functions/src/api/routes/connections.ts` — generates PKCE challenge, stores state, returns redirect URL
-- [ ] T022 🔗 [US1] Implement `POST /api/connections/:platform/oauth/callback` in `packages/functions/src/api/routes/connections.ts` — exchanges auth code for tokens via platform API, encrypts tokens, inserts into connections table, emits `connection.created` event via outbox
-- [ ] T023 🔗 [US1] Implement `GET /api/connections` in `packages/functions/src/api/routes/connections.ts` — returns user's connections with status (active, requires_reauth, disconnected)
-- [ ] T024 🔗 [US1] Implement `POST /api/connections/:platform/disconnect` in `packages/functions/src/api/routes/connections.ts` — revokes token with platform, deletes vault entry, optionally deletes activities (per `delete_data` flag), emits `connection.revoked` event
-- [ ] T025 [P] 🔗 [US1] Implement `ZwiftAdapter` in `packages/core/src/adapters/zwift-adapter.ts` — OAuth token exchange, activity fetch (paginated), token refresh, rate-limit headers
-- [ ] T026 [P] 🔗 [US1] Implement `StravaAdapter` in `packages/core/src/adapters/strava-adapter.ts` — OAuth token exchange, activity fetch (paginated), token refresh, rate-limit headers
-- [ ] T027 🔐 [US1] Implement token refresh logic in `packages/core/src/crypto/token-refresh.ts` — checks `token_expires_at`, calls adapter's `refreshToken()`, re-encrypts, updates connections row; on failure sets status to `requires_reauth` and emits `token.refresh_failed` + `connection.degraded` events
-- [ ] T028 ✅ [US1] Verify: mobile fixture completes OAuth for Zwift; tokens encrypted in D1; `GET /api/connections` shows `active`; disconnect revokes and cleans up; invalid token sets `requires_reauth`
+- [X] T021 🔗 [US1] Implement `POST /api/connections/:platform/oauth/initiate` in `packages/functions/src/api/routes/connections.ts` — generates PKCE challenge, stores state, returns redirect URL
+- [X] T022 🔗 [US1] Implement `POST /api/connections/:platform/oauth/callback` in `packages/functions/src/api/routes/connections.ts` — exchanges auth code for tokens via platform API, encrypts tokens, inserts into connections table, emits `connection.created` event via outbox
+- [X] T023 🔗 [US1] Implement `GET /api/connections` in `packages/functions/src/api/routes/connections.ts` — returns user's connections with status (active, requires_reauth, disconnected)
+- [X] T024 🔗 [US1] Implement `POST /api/connections/:platform/disconnect` in `packages/functions/src/api/routes/connections.ts` — revokes token with platform, deletes vault entry, optionally deletes activities (per `delete_data` flag), emits `connection.revoked` event
+- [X] T025 [P] 🔗 [US1] Implement `ZwiftAdapter` in `packages/core/src/adapters/zwift-adapter.ts` — OAuth token exchange, activity fetch (paginated), token refresh, rate-limit headers
+- [X] T026 [P] 🔗 [US1] Implement `StravaAdapter` in `packages/core/src/adapters/strava-adapter.ts` — OAuth token exchange, activity fetch (paginated), token refresh, rate-limit headers
+- [X] T027 🔐 [US1] Implement token refresh logic in `packages/core/src/crypto/token-refresh.ts` — checks `token_expires_at`, calls adapter's `refreshToken()`, re-encrypts, updates connections row; on failure sets status to `requires_reauth` and emits `token.refresh_failed` + `connection.degraded` events
+- [DEFERRED] T028 ✅ [US1] Verify: web fixture completes OAuth for Zwift; tokens encrypted in D1; `GET /api/connections` shows `active`; disconnect revokes and cleans up; invalid token sets `requires_reauth` (requires Cloudflare credentials + deployed environment)
 
 ---
 
@@ -119,6 +121,7 @@
 > **Independent test:** Connect Zwift → scheduler polls → activities stored in D1; connect Strava → receive webhook → activity fetched; `GET /api/activities?since=` returns incremental results.
 
 - [ ] T029 ✅ [US4] Implement `UserSyncCoordinator` Durable Object in `packages/functions/src/worker/sync-coordinator.ts` — `beginSync(platform)`, `completeSync(jobId, result)`, `failSync(jobId, error)`, `getCursor(platform)` methods; per-user state with cursors, locks, consecutive failures
+- [ ] T029a ⚡ [FR-14] Implement central rate-limit budget module in `packages/core/src/sync/rate-limit.ts` — tracks per-user/per-platform API call budget using headers (`X-RateLimit-Remaining`, `Retry-After`); consulted by Sync Orchestrator before each adapter call; blocks further calls and enqueues retry when budget exhausted
 - [ ] T030 ✅ [US4] Implement `scheduler` Worker in `packages/functions/src/scheduler/index.ts` — Cron Trigger every 30 min; queries D1 for connections WHERE status='active' AND platform='zwift'; enqueues sync jobs to `sync-jobs` Queue
 - [ ] T031 ✅ [US4] Implement `worker` Worker (sync-jobs consumer) in `packages/functions/src/worker/index.ts` — dequeues from `sync-jobs`; calls `UserSyncCoordinator.beginSync()`; calls platform adapter `fetchActivities()`; stores activities in D1 + raw payloads in R2; emits `activity.ingested` events via outbox; calls `completeSync()`
 - [ ] T032 [P] ✅ [US4] Implement retry logic in `worker` Worker — on transient errors (timeout, 429, 5xx) enqueue to `retry-jobs` with exponential backoff (5m, 15m, 30m, 1h, cap 24h); on permanent errors (401, 403, 404) flag connection and emit `token.refresh_failed`
@@ -182,6 +185,7 @@
 - [ ] T061 [P] ⚡ Implement KV feed cache in `packages/functions/src/api/routes/activities.ts` — cache `GET /api/activities` hot responses in `feed-cache` KV (5 min TTL); invalidate on new activity ingest
 - [ ] T062 🔐 Implement `GET /api/user/export` endpoint in `packages/functions/src/api/routes/user.ts` — for small datasets (<30s): returns ZIP inline containing user profile, all activities (JSON), connections metadata, and audit log entries; for large datasets: kicks off async export, stores ZIP in R2, returns 202 with polling URL; emits `user.export_ready` event when complete so push notifier can alert user (GDPR Art. 20 — FR-15, NFR-7)
 - [ ] T063 🔐 Implement `DELETE /api/user` endpoint in `packages/functions/src/api/routes/user.ts` — soft-deletes user record, revokes all platform tokens, purges activities from D1 and R2 blobs, removes push device registrations, enqueues `user.deleted` event; 30-day grace period before hard purge (GDPR Art. 17 — FR-15, NFR-7)
+- [ ] T063a ⚡ Implement audit log archival job in `packages/functions/src/scheduler/audit-archive.ts` — runs nightly via Cron Trigger; copies `audit_log` rows older than 90 days from D1 to R2 as NDJSON (one file per day); truncates archived rows from D1 to keep hot table lean; retains R2 archive for 7 years (GDPR compliance; Constitution §8)
 - [ ] T064 ⚡ Provision technical status page (Cloudflare Workers status endpoint at `/api/status`) in `packages/functions/src/api/routes/status.ts` — exposes platform sync health (per-platform success rate, last poll time, queue depth, outbox relay lag); public (no auth); Constitution §7 compliance
 - [ ] T065 🧪 Implement E2E test suite in `packages/functions/tests/e2e/` — deploy to staging via `npx sst deploy --stage staging`; run full sync workflow: create user → connect Zwift → scheduler polls → activity ingested → dedup runs → push delivered → verify via API; includes Strava webhook flow and Apple Health upload flow; Constitution §6 compliance
 - [ ] T066 🧪 Implement E2E dedup cross-platform test — same activity arrives from Zwift poll and Strava webhook → dedup auto-merges (>85%) → single canonical activity with two sources visible via `GET /api/activities`; verify 70-85% case surfaces at `/api/dedup/pending`

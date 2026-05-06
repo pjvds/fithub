@@ -1,6 +1,5 @@
 import type { Db } from "../events/idempotency.js";
 import { auditLog } from "../db/schema.js";
-import { randomUUID } from "node:crypto";
 
 export interface AuditEntry {
   userId?: string | null;
@@ -11,7 +10,7 @@ export interface AuditEntry {
 
 export async function logAuditEvent(db: Db, entry: AuditEntry): Promise<void> {
   await db.insert(auditLog).values({
-    id: typeof randomUUID === "function" ? randomUUID() : crypto.randomUUID(),
+    id: crypto.randomUUID(),
     userId: entry.userId ?? null,
     eventType: entry.eventType,
     platform: entry.platform ?? null,
