@@ -1,0 +1,16 @@
+{
+  "name": "@fithub/functions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fithub/core": "*",
+    "@openauthjs/openauth": "^0.4.0",
+    "drizzle-orm": "^0.45.0",
+    "hono": "^4.12.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0"
+  }
+}
