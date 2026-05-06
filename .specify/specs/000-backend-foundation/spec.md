@@ -12,7 +12,7 @@
 
 **Version:** 1.0.0
 
-**Status:** Draft
+**Status:** In Progress
 
 **Date:** 2026-05-05
 
@@ -107,7 +107,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 - [ ] AC-4: *(DEFERRED — mobile v2+)* Mobile client can upload an Apple Health activity payload; backend persists raw payload and canonical fields.
 - [ ] AC-5: Deduplication Engine merges activities matching at >85% confidence into one canonical record with multiple source references.
 - [ ] AC-6: *(DEFERRED — mobile v2+)* When new data is available for a user, backend sends a silent push within 60 seconds of ingestion.
-- [ ] AC-7: Mobile client can fetch activities since a cursor and receives only new/updated records.
+- [ ] AC-7: Client can fetch activities since a cursor and receives only new/updated records.
 - [ ] AC-8: Failed external API calls retry with exponential backoff (5m, 15m, 30m, 1h, capped at 24h total window).
 - [ ] AC-9: An OAuth token marked as invalid (401/403 from platform) is flagged for user re-authentication; backend stops polling until reconnect.
 - [ ] AC-10: A user can disconnect a platform; backend revokes the token with the platform, deletes the token vault entry, and (per user choice) deletes or retains historical activities.
@@ -134,7 +134,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 - [x] Onboarding/setup completable in <5 minutes — OAuth flow proxied through backend, redirects to web app
 - [x] Error messages are clear and actionable — API returns user-safe error codes; web client maps to friendly text
 - [x] Advanced options hidden by default — N/A (no UI in this feature)
-- [x] Fewer than 3 taps/clicks for core action — Mobile UI handles UX; backend supports it
+- [x] Fewer than 3 taps/clicks for core action — Web UI handles UX; backend supports it
 - **Notes:** This feature has no direct UI but must support fast, low-friction client flows.
 
 ### ✅ Reliability & Uptime
@@ -270,6 +270,8 @@ so that I have a single, unified workout history regardless of how I access FitH
 - **FR-13:** System MUST distinguish transient (timeout, 429, 5xx) from permanent (401, 403, 404) errors; only transient errors enter retry queue.
 - **FR-14:** System MUST respect platform rate limits centrally (single token's budget shared across all calls for that user).
 - **FR-15:** System MUST log every token operation (issue, refresh, revoke, fail) and every external API call (without payload, only metadata) for ≥1 year.
+- **FR-16:** System MUST expose `POST /api/connections/:platform/oauth/initiate` returning a redirect URL with a PKCE challenge bound to the current session.
+- **FR-17:** System MUST expose `POST /api/connections/:platform/oauth/callback` accepting `code` + `state`, verifying the PKCE verifier, exchanging the code for tokens, and persisting them via the OAuth Vault.
 
 ### Non-Functional Requirements
 
@@ -336,7 +338,7 @@ See `.specify/memory/architecture-overview.md` for the full system diagram. The 
 │                                                                             │
 │  ┌──────────────────── Per-Entity Coordination ─────────────────────┐       │
 │  │  Durable Objects (one per user, lazy-instantiated)               │       │
-│  │  Used for: dedup serialization, sync-job mutex, mobile WS push   │       │
+│  │  Used for: dedup serialization, sync-job mutex                   │       │
 │  └──────────────────────────────────────────────────────────────────┘       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -430,7 +432,7 @@ See `.specify/memory/architecture-overview.md` for the full system diagram. The 
 
 ## Success Metrics
 
-- **Metric 1 (Latency):** End-to-end latency from platform event to mobile push <5 min P95.
+- **Metric 1 (Latency):** End-to-end latency from platform event to user-visible API data <5 min P95.
 - **Metric 2 (Reliability):** 99.5% uptime over 30 days, measured by external synthetic checks.
 - **Metric 3 (Sync Success):** ≥99% of scheduled polls complete successfully within their window.
 - **Metric 4 (Dedup Accuracy):** False-positive merge rate <1% measured against labeled test set; false-negative rate <5%.
