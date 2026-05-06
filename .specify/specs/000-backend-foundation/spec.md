@@ -259,11 +259,11 @@ so that I have a single, unified workout history regardless of how I access FitH
 - **FR-2:** System MUST refresh access tokens before expiry without user intervention; failed refresh MUST flag connection as `requires_reauth`.
 - **FR-3:** System MUST poll each connected Zwift user every 30 minutes (±1 minute jitter) for new activities.
 - **FR-4:** System MUST register and process Strava webhook subscriptions per user; webhook payloads MUST trigger activity fetch within 30 seconds.
-- **FR-5:** System MUST accept mobile uploads of Apple Health activity payloads via authenticated REST endpoint.
+- **FR-5:** *(DEFERRED — mobile v2+)* System MUST accept mobile uploads of Apple Health activity payloads via authenticated REST endpoint.
 - **FR-6:** System MUST run the deduplication algorithm on every newly ingested activity, regardless of source.
 - **FR-7:** System MUST merge activities scoring >85% confidence into a single canonical record with multiple `activity_sources` entries.
 - **FR-8:** System MUST flag activities scoring 70–85% for user confirmation and expose them via a `GET /api/dedup/pending` endpoint.
-- **FR-9:** System MUST send a silent push notification to all of a user's registered devices within 60 seconds of ingesting new activities.
+- **FR-9:** *(DEFERRED — mobile v2+)* System MUST send a silent push notification to all of a user's registered devices within 60 seconds of ingesting new activities.
 - **FR-10:** System MUST expose `GET /api/activities?since=<cursor>` returning new/updated activities since the cursor, paginated.
 - **FR-11:** System MUST expose `POST /api/connections/:platform/disconnect` that revokes the token with the platform, deletes the vault entry, and (per user-supplied flag) deletes or retains historical activities.
 - **FR-12:** System MUST persist sync work durably via Cloudflare Queues and Durable Objects; in-flight sync jobs survive Worker eviction and are retried automatically. (See also NFR-9.)

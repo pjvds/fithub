@@ -14,7 +14,10 @@ export default $config({
   async run() {
     const tokenMasterKey = new sst.Secret("TOKEN_MASTER_KEY");
     const zwiftClientSecret = new sst.Secret("ZWIFT_CLIENT_SECRET");
+    const zwiftClientId = new sst.Secret("ZWIFT_CLIENT_ID");
     const stravaClientSecret = new sst.Secret("STRAVA_CLIENT_SECRET");
+    const stravaClientId = new sst.Secret("STRAVA_CLIENT_ID");
+    const redirectBaseUrl = new sst.Secret("REDIRECT_BASE_URL");
     const openauthSigningKey = new sst.Secret("OPENAUTH_SIGNING_KEY");
     const appleClientSecret = new sst.Secret("APPLE_CLIENT_SECRET");
     const googleClientSecret = new sst.Secret("GOOGLE_CLIENT_SECRET");
@@ -23,7 +26,7 @@ export default $config({
     const db = new sst.cloudflare.D1("FithubDb");
 
     const feedCache = new sst.cloudflare.Kv("FeedCache");
-    const _authKv = new sst.cloudflare.Kv("AuthKv");
+    const authKv = new sst.cloudflare.Kv("AuthKv");
 
     const blobStore = new sst.cloudflare.Bucket("BlobStore");
 
@@ -44,7 +47,10 @@ export default $config({
     const apiSecrets = [
       tokenMasterKey,
       zwiftClientSecret,
+      zwiftClientId,
       stravaClientSecret,
+      stravaClientId,
+      redirectBaseUrl,
       openauthSigningKey,
       appleClientSecret,
       googleClientSecret,
@@ -54,7 +60,7 @@ export default $config({
     const api = new sst.cloudflare.Worker("Api", {
       handler: "packages/functions/src/api/index.ts",
       url: true,
-      link: [db, feedCache, blobStore, eventBus, syncJobs, retryJobs, ...apiSecrets],
+      link: [db, feedCache, authKv, blobStore, eventBus, syncJobs, retryJobs, ...apiSecrets],
     });
 
     const outboxRelay = new sst.cloudflare.Worker("OutboxRelay", {

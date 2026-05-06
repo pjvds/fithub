@@ -4,6 +4,7 @@ import { ErrorCode, LogEvent } from "@fithub/core";
 import { authMiddleware, type AuthVariables } from "./middleware/auth.js";
 import { correlationMiddleware, type CorrelationVariables } from "./middleware/correlation.js";
 import { loggerMiddleware, type LoggerVariables } from "./middleware/logger.js";
+import { connectionsRouter } from "./routes/connections.js";
 
 interface AppEnv {
   Bindings: Record<string, never>;
@@ -44,6 +45,7 @@ const jwksUrl = (globalThis as { OPENAUTH_JWKS_URL?: string }).OPENAUTH_JWKS_URL
 authedRoutes.use("*", authMiddleware({ jwksUrl }));
 
 authedRoutes.get("/me", (c) => c.json({ userId: c.get("userId") }));
+authedRoutes.route("/connections", connectionsRouter);
 
 app.route("/api", authedRoutes);
 

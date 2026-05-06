@@ -21,3 +21,16 @@ export interface PlatformAdapter {
   validateToken(token: string): Promise<boolean>;
   revokeToken(token: string): Promise<void>;
 }
+
+export interface OAuthResult {
+  accessToken: string;
+  refreshToken: string | null;
+  expiresAt: Date | null;
+  scopes: string | null;
+  platformUserId: string | null;
+}
+
+export interface OAuthPlatformAdapter extends PlatformAdapter {
+  buildAuthUrl(redirectUri: string, state: string, codeChallenge: string): string;
+  exchangeCode(code: string, redirectUri: string, codeVerifier: string): Promise<OAuthResult>;
+}

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Hono } from "hono";
-import { authMiddleware, verifyJwt } from "../src/api/middleware/auth.js";
+import { authMiddleware, verifyJwt, type AuthVariables } from "../src/api/middleware/auth.js";
+import type { LoggerVariables } from "../src/api/middleware/logger.js";
 import type { Logger } from "@fithub/core";
 
 // --- helpers ----------------------------------------------------------------
@@ -156,7 +157,7 @@ describe("authMiddleware — early exit paths", () => {
 // --- authMiddleware — full verification paths --------------------------------
 
 describe("authMiddleware — full verification paths", () => {
-  let app: Hono;
+  let app: Hono<{ Variables: AuthVariables & LoggerVariables }>;
   let fullClock = 2_000_000_000_000;
   const mockLogger = {
     debug: vi.fn(),
@@ -172,7 +173,7 @@ describe("authMiddleware — full verification paths", () => {
     vi.spyOn(crypto.subtle, "verify").mockResolvedValue(true);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => FAKE_JWKS }));
 
-    app = new Hono();
+    app = new Hono<{ Variables: AuthVariables & LoggerVariables }>();
     // Inject a mock logger so log?.warn() is executed, covering reasonToCode().
     app.use("*", (c, next) => { c.set("logger", mockLogger); return next(); });
     app.use("/protected/*", authMiddleware({ jwksUrl: JWKS_URL, audience: "api", issuer: "auth.example.com" }));

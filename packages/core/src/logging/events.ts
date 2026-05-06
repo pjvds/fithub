@@ -26,6 +26,12 @@ export const LogEvent = {
   connectionCreated: "connection.created",
   connectionRevoked: "connection.revoked",
   connectionDegraded: "connection.degraded",
+
+  oauthInitiateStarted: "oauth.initiate.started",
+  oauthCallbackCompleted: "oauth.callback.completed",
+  oauthCallbackFailed: "oauth.callback.failed",
+  oauthDisconnectStarted: "oauth.disconnect.started",
+  oauthDisconnectCompleted: "oauth.disconnect.completed",
 } as const;
 
 export type LogEvent = (typeof LogEvent)[keyof typeof LogEvent];

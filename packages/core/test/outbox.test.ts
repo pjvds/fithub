@@ -26,7 +26,8 @@ describe("eventToOutboxRow", () => {
   });
 
   it("sets subject to null when the event has no subject", () => {
-    const eventWithoutSubject = { ...SAMPLE_EVENT, subject: undefined };
+    const { subject: _subject, ...withoutSubject } = SAMPLE_EVENT;
+    const eventWithoutSubject = withoutSubject as CloudEvent<{ activityId: string }>;
     const row = eventToOutboxRow(eventWithoutSubject);
     expect(row.subject).toBeNull();
   });
