@@ -179,7 +179,7 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
 
 ### Decision 6: Hybrid Push Strategy (APNs/FCM Direct + Mobile Polling Fallback)
 
-**Choice:** Send silent pushes via APNs (iOS) and FCM (Android) directly from Workers using HTTP/2 APIs. Mobile fetches `/api/activities?since=cursor` on push receipt and on every app foreground (fallback for missed pushes).
+**Choice:** Send silent pushes via APNs (iOS) and FCM (Android) directly from Workers using HTTP/2 APIs. Mobile fetches `GET /api/activities?cursor=<opaque>&limit=<n>` on push receipt and on every app foreground (fallback for missed pushes).
 
 **Rationale:**
 - Direct HTTP/2 APIs avoid third-party push services (cost + privacy)
@@ -219,7 +219,7 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
 - Separate SST apps per Worker: more boilerplate, harder to share code
 - Monolithic single Worker: violates separation of concerns; cron + queue + API in one is messy
 
-**Impact:** Workspace-style monorepo in `packages/`; build config must produce four Worker bundles.
+**Impact:** Workspace-style monorepo in `packages/`; build config must produce five Worker bundles (`api`, `scheduler`, `worker`, `outbox-relay`, `auth`).
 
 ---
 

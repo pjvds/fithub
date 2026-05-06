@@ -250,7 +250,7 @@ so that I have a single, unified workout history regardless of how I access FitH
   - Tokens encrypted at rest with app-layer AES-256-GCM; master key in Workers Secrets.
   - All transport TLS 1.3+.
   - GDPR: user can request export and deletion of their data.
-  - Audit log of all token operations and data access retained ≥1 year.
+  - Audit log of all token operations and data access retained ≥7 years (GDPR compliance; see FR-15).
   - No PII in application logs.
 
 ### Functional Requirements

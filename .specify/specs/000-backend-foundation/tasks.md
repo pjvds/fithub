@@ -82,7 +82,7 @@
 - [X] T015c [P] 📢 Define error-code taxonomy in `packages/core/src/logging/error-codes.ts` — typed enum used on every `error`-level entry; `LoggedError` class for thrown errors carrying a code
 - [X] T015d 📢 Implement correlation-ID + logger middleware in `packages/functions/src/api/middleware/correlation.ts` and `.../logger.ts` — reads `x-correlation-id` / `x-request-id`, mints UUID otherwise, propagates into Hono context, response header, and request-scoped `Logger`
 - [X] T015e 📢 Refactor `auth.ts`, `api/index.ts`, `outbox-relay/index.ts` to use the structured logger (no `console.*` outside the logger module)
-- [ ] T015f 📢 [NFR-6] Add `correlationId` field to `SyncJobMessage` interface in `packages/functions/src/worker/index.ts` and to the outbox CloudEvents `data` envelope in `packages/core/src/events/types.ts` — scheduler and webhook handlers must forward the request-scoped `correlationId` into enqueued messages; sync worker must initialize its scoped logger with the `correlationId` from the message; enables end-to-end trace stitching across HTTP → queue → worker hops
+- [ ] T015f 📢 [NFR-6] Add `correlationId` field to `SyncJobMessage` interface in `packages/functions/src/worker/index.ts` and to the outbox CloudEvents `data` envelope in `packages/core/src/events/types.ts` — scheduler and webhook handlers must forward the request-scoped `correlationId` into enqueued messages; sync worker must initialize its scoped logger with the `correlationId` from the message; enables end-to-end trace stitching across HTTP → queue → worker hops; **tests:** round-trip `SyncJobMessage` with `correlationId` field; verify CloudEvents `data` envelope carries `correlationId`; verify scheduler enqueues messages with `correlationId` set from request context
 - [X] T016 🔐 Implement token encryption module in `packages/core/src/crypto/token-vault.ts` — `encrypt(plaintext, masterKey)` → `v1:iv:ciphertext:tag` (base64); `decrypt(ciphertext, masterKey)` → plaintext; AES-256-GCM; uses Web Crypto API
 - [X] T017 [P] 🔗 Define `PlatformAdapter` interface in `packages/core/src/adapters/types.ts` — `fetchActivities(token, since?)`, `refreshToken(refreshToken)`, `validateToken(token)`, `revokeToken(token)`; `CanonicalActivity` type
 - [X] T018 [P] 📢 Implement audit log module in `packages/core/src/audit/logger.ts` — `logAuditEvent(db, {userId, eventType, platform, metadata})` inserts into audit_log table; metadata is JSON (no PII, no tokens, no payloads)
@@ -175,7 +175,7 @@
 
 > Goal: Production-readiness — observability, security hardening, load testing, documentation.
 
-- [ ] T053 ⚡ Configure Logpush to log aggregator in `sst.config.ts` for structured Worker logs
+- [ ] T053 ⚡ Configure Logpush to log aggregator in `sst.config.ts` for structured Worker logs — **destination TBD before Phase 7 starts**; candidates: Better Stack (Logtail), Axiom, or Cloudflare's native Logpush → R2 + query via Cloudflare Analytics Engine; decision gates NFR-6 and Constitution §8 compliance
 - [ ] T054 [P] ⚡ Implement custom metrics emission in Workers — poll success rate, push delivery rate, dedup match distribution, queue depth, outbox relay lag
 - [ ] T055 [P] ⚡ Configure alerts — SLO violations (>0.5% error rate), queue backlog > threshold, outbox relay lag > 30s
 - [ ] T056 [P] ✅ Implement bounded-window cleanup cron for `processed_events` table in `packages/functions/src/outbox-relay/cleanup.ts` — daily cron deletes rows older than 24h; safety invariant: 24h > Queues 12h max retry window
