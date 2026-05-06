@@ -41,11 +41,12 @@ Build a serverless TypeScript backend on Cloudflare, deployed via SST. Map each 
 - **Secrets** → Workers Secrets + app-layer AES-256-GCM for OAuth tokens
 - **Event schema** → CloudEvents v1.0 JSON + Zod validation
 
-The architecture is structured around four logical service boundaries within a single SST app:
+The architecture is structured around five logical service boundaries within a single SST app:
 1. **`api`** Worker — Client-facing HTTP API (web in v1; future mobile) + Strava webhook receiver
-2. **`scheduler`** Worker — Cron-triggered Zwift polling dispatcher
+2. **`scheduler`** Worker — Cron-triggered Zwift polling dispatcher + audit log archival
 3. **`worker`** Worker — Queue consumer for sync jobs + retry processing
-4. **`auth`** Worker — OpenAuth.js (SST Auth) issuer hosting Apple/Google/email-magic-link sign-in flows; issues JWTs validated by `api`
+4. **`outbox-relay`** Worker — Cron-triggered (~5s) outbox drain from D1 → Cloudflare Queues
+5. **`auth`** Worker — OpenAuth.js (SST Auth) issuer hosting Apple/Google/email-magic-link sign-in flows; issues JWTs validated by `api`
 
 Each user has a `UserSyncCoordinator` Durable Object holding sync state (last cursor per platform, pending dedup queue, push tokens).
 
@@ -201,7 +202,7 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
 
 ### Decision 7: Single SST App with Multiple Workers
 
-**Choice:** Single SST application defining all backend resources (Workers, D1, DOs, Queues, KV, Secrets). Four logical Workers within: `api`, `scheduler`, `worker`, `auth`.
+**Choice:** Single SST application defining all backend resources (Workers, D1, DOs, Queues, KV, Secrets). Five logical Workers within: `api`, `scheduler`, `worker`, `outbox-relay`, `auth`.
 
 **Rationale:**
 - Shared types and utilities across Workers (encryption, dedup engine, JWT verification helpers)
@@ -336,6 +337,7 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
        │  │ - /connections  │    │   Zwift conns    │  │ - Retry      │  │
        │  │ - /activities   │    │ - Enqueue jobs   │  │ - Adapter    │  │
        │  │ - /health/upload│    │                  │  │   exec       │  │
+       │  │   [DEFERRED v2+]│    │                  │  │              │  │
        │  │ - /webhooks/*   │    │                  │  │ - Dedup      │  │
        │  │ - /sync/trigger │    │                  │  │ - Push       │  │
        │  └────────┬────────┘    └────────┬─────────┘  └──────┬───────┘  │

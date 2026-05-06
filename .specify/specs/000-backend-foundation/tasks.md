@@ -22,7 +22,7 @@
 
 ## Task Summary
 
-**Total Tasks:** 76
+**Total Tasks:** 83 (including sub-tasks T015a–T015e, T029a, T063a)
 
 **Number of Parallel Work Streams:** Up to 3 (after Phase 2 completes)
 
@@ -82,6 +82,7 @@
 - [X] T015c [P] 📢 Define error-code taxonomy in `packages/core/src/logging/error-codes.ts` — typed enum used on every `error`-level entry; `LoggedError` class for thrown errors carrying a code
 - [X] T015d 📢 Implement correlation-ID + logger middleware in `packages/functions/src/api/middleware/correlation.ts` and `.../logger.ts` — reads `x-correlation-id` / `x-request-id`, mints UUID otherwise, propagates into Hono context, response header, and request-scoped `Logger`
 - [X] T015e 📢 Refactor `auth.ts`, `api/index.ts`, `outbox-relay/index.ts` to use the structured logger (no `console.*` outside the logger module)
+- [ ] T015f 📢 [NFR-6] Add `correlationId` field to `SyncJobMessage` interface in `packages/functions/src/worker/index.ts` and to the outbox CloudEvents `data` envelope in `packages/core/src/events/types.ts` — scheduler and webhook handlers must forward the request-scoped `correlationId` into enqueued messages; sync worker must initialize its scoped logger with the `correlationId` from the message; enables end-to-end trace stitching across HTTP → queue → worker hops
 - [X] T016 🔐 Implement token encryption module in `packages/core/src/crypto/token-vault.ts` — `encrypt(plaintext, masterKey)` → `v1:iv:ciphertext:tag` (base64); `decrypt(ciphertext, masterKey)` → plaintext; AES-256-GCM; uses Web Crypto API
 - [X] T017 [P] 🔗 Define `PlatformAdapter` interface in `packages/core/src/adapters/types.ts` — `fetchActivities(token, since?)`, `refreshToken(refreshToken)`, `validateToken(token)`, `revokeToken(token)`; `CanonicalActivity` type
 - [X] T018 [P] 📢 Implement audit log module in `packages/core/src/audit/logger.ts` — `logAuditEvent(db, {userId, eventType, platform, metadata})` inserts into audit_log table; metadata is JSON (no PII, no tokens, no payloads)
@@ -118,7 +119,7 @@
 >
 > **Acceptance Criteria:** AC-2 (Zwift poll every 30 min), AC-3 (Strava webhook <30s), AC-7 (incremental activity fetch), AC-8 (retry with backoff)
 >
-> **Independent test:** Connect Zwift → scheduler polls → activities stored in D1; connect Strava → receive webhook → activity fetched; `GET /api/activities?since=` returns incremental results.
+> **Independent test:** Connect Zwift → scheduler polls → activities stored in D1; connect Strava → receive webhook → activity fetched; `GET /api/activities?cursor=<opaque>&limit=<n>` returns incremental results.
 
 - [x] T029 ✅ [US4] Implement `UserSyncCoordinator` Durable Object in `packages/functions/src/worker/sync-coordinator.ts` — `beginSync(platform)`, `completeSync(jobId, result)`, `failSync(jobId, error)`, `getCursor(platform)` methods; per-user state with cursors, locks, consecutive failures
 - [x] T029a ⚡ [FR-14] Implement central rate-limit budget module in `packages/core/src/sync/rate-limit.ts` — tracks per-user/per-platform API call budget using headers (`X-RateLimit-Remaining`, `Retry-After`); consulted by Sync Orchestrator before each adapter call; blocks further calls and enqueues retry when budget exhausted

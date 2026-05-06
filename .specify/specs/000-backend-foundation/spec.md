@@ -269,7 +269,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 - **FR-12:** System MUST persist sync work durably via Cloudflare Queues and Durable Objects; in-flight sync jobs survive Worker eviction and are retried automatically. (See also NFR-9.)
 - **FR-13:** System MUST distinguish transient (timeout, 429, 5xx) from permanent (401, 403, 404) errors; only transient errors enter retry queue.
 - **FR-14:** System MUST respect platform rate limits centrally (single token's budget shared across all calls for that user).
-- **FR-15:** System MUST log every token operation (issue, refresh, revoke, fail) and every external API call (without payload, only metadata) for ≥1 year.
+- **FR-15:** System MUST log every token operation (issue, refresh, revoke, fail) and every external API call (without payload, only metadata) and retain audit records for ≥7 years (GDPR compliance; operational hot-tier: 90 days in D1; archive: R2 per T063a).
 - **FR-16:** System MUST expose `POST /api/connections/:platform/oauth/initiate` returning a redirect URL with a PKCE challenge bound to the current session.
 - **FR-17:** System MUST expose `POST /api/connections/:platform/oauth/callback` accepting `code` + `state`, verifying the PKCE verifier, exchanging the code for tokens, and persisting them via the OAuth Vault.
 
