@@ -120,17 +120,17 @@
 >
 > **Independent test:** Connect Zwift → scheduler polls → activities stored in D1; connect Strava → receive webhook → activity fetched; `GET /api/activities?since=` returns incremental results.
 
-- [ ] T029 ✅ [US4] Implement `UserSyncCoordinator` Durable Object in `packages/functions/src/worker/sync-coordinator.ts` — `beginSync(platform)`, `completeSync(jobId, result)`, `failSync(jobId, error)`, `getCursor(platform)` methods; per-user state with cursors, locks, consecutive failures
-- [ ] T029a ⚡ [FR-14] Implement central rate-limit budget module in `packages/core/src/sync/rate-limit.ts` — tracks per-user/per-platform API call budget using headers (`X-RateLimit-Remaining`, `Retry-After`); consulted by Sync Orchestrator before each adapter call; blocks further calls and enqueues retry when budget exhausted
-- [ ] T030 ✅ [US4] Implement `scheduler` Worker in `packages/functions/src/scheduler/index.ts` — Cron Trigger every 30 min; queries D1 for connections WHERE status='active' AND platform='zwift'; enqueues sync jobs to `sync-jobs` Queue
-- [ ] T031 ✅ [US4] Implement `worker` Worker (sync-jobs consumer) in `packages/functions/src/worker/index.ts` — dequeues from `sync-jobs`; calls `UserSyncCoordinator.beginSync()`; calls platform adapter `fetchActivities()`; stores activities in D1 + raw payloads in R2; emits `activity.ingested` events via outbox; calls `completeSync()`
-- [ ] T032 [P] ✅ [US4] Implement retry logic in `worker` Worker — on transient errors (timeout, 429, 5xx) enqueue to `retry-jobs` with exponential backoff (5m, 15m, 30m, 1h, cap 24h); on permanent errors (401, 403, 404) flag connection and emit `token.refresh_failed`
-- [ ] T033 [P] 🔗 [US4] Implement Strava webhook endpoint `GET /webhooks/strava` (verification) and `POST /webhooks/strava` (event delivery) in `packages/functions/src/api/routes/webhooks.ts` — verify subscription challenge; validate signature via `X-Strava-Signature`; on activity create/update enqueue sync job
-- [ ] T034 🔗 [US4] Implement Strava webhook subscription management in `packages/core/src/adapters/strava-subscription.ts` — create subscription on first Strava connection per environment; delete when last connection disconnects
-- [ ] T035 [P] 🔗 [US4] Implement hourly Strava reconcile poll in `scheduler` Worker — queries active Strava connections; enqueues lightweight catch-up sync for missed webhook events
-- [ ] T036 👤 [US4] Implement `GET /api/activities?since=<cursor>&limit=<n>` in `packages/functions/src/api/routes/activities.ts` — cursor-based pagination; returns canonical activities with `next_cursor`
-- [ ] T037 [P] 👤 [US4] Implement `POST /api/sync/trigger` in `packages/functions/src/api/routes/sync.ts` — manual sync trigger; enqueues sync job; returns 409 if sync already in flight
-- [ ] T038 ✅ [US4] Verify: Zwift cron fires; activities appear in D1; Strava webhook triggers fetch; `GET /api/activities` returns data; retry handles transient failures
+- [x] T029 ✅ [US4] Implement `UserSyncCoordinator` Durable Object in `packages/functions/src/worker/sync-coordinator.ts` — `beginSync(platform)`, `completeSync(jobId, result)`, `failSync(jobId, error)`, `getCursor(platform)` methods; per-user state with cursors, locks, consecutive failures
+- [x] T029a ⚡ [FR-14] Implement central rate-limit budget module in `packages/core/src/sync/rate-limit.ts` — tracks per-user/per-platform API call budget using headers (`X-RateLimit-Remaining`, `Retry-After`); consulted by Sync Orchestrator before each adapter call; blocks further calls and enqueues retry when budget exhausted
+- [x] T030 ✅ [US4] Implement `scheduler` Worker in `packages/functions/src/scheduler/index.ts` — Cron Trigger every 30 min; queries D1 for connections WHERE status='active' AND platform='zwift'; enqueues sync jobs to `sync-jobs` Queue
+- [x] T031 ✅ [US4] Implement `worker` Worker (sync-jobs consumer) in `packages/functions/src/worker/index.ts` — dequeues from `sync-jobs`; calls `UserSyncCoordinator.beginSync()`; calls platform adapter `fetchActivities()`; stores activities in D1 + raw payloads in R2; emits `activity.ingested` events via outbox; calls `completeSync()`
+- [x] T032 [P] ✅ [US4] Implement retry logic in `worker` Worker — on transient errors (timeout, 429, 5xx) enqueue to `retry-jobs` with exponential backoff (5m, 15m, 30m, 1h, cap 24h); on permanent errors (401, 403, 404) flag connection and emit `token.refresh_failed`
+- [x] T033 [P] 🔗 [US4] Implement Strava webhook endpoint `GET /webhooks/strava` (verification) and `POST /webhooks/strava` (event delivery) in `packages/functions/src/api/routes/webhooks.ts` — verify subscription challenge; validate signature via `X-Strava-Signature`; on activity create/update enqueue sync job
+- [x] T034 🔗 [US4] Implement Strava webhook subscription management in `packages/core/src/adapters/strava-subscription.ts` — create subscription on first Strava connection per environment; delete when last connection disconnects
+- [x] T035 [P] 🔗 [US4] Implement hourly Strava reconcile poll in `scheduler` Worker — queries active Strava connections; enqueues lightweight catch-up sync for missed webhook events
+- [x] T036 👤 [US4] Implement `GET /api/activities?since=<cursor>&limit=<n>` in `packages/functions/src/api/routes/activities.ts` — cursor-based pagination; returns canonical activities with `next_cursor`
+- [x] T037 [P] 👤 [US4] Implement `POST /api/sync/trigger` in `packages/functions/src/api/routes/sync.ts` — manual sync trigger; enqueues sync job; returns 409 if sync already in flight
+- [~] T038 ✅ [US4] Verify: Zwift cron fires; activities appear in D1; Strava webhook triggers fetch; `GET /api/activities` returns data; retry handles transient failures — DEFERRED: requires deployed Cloudflare environment
 
 ---
 
