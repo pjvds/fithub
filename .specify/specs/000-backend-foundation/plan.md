@@ -18,6 +18,7 @@
 - **Frameworks/runtimes:** Hono ^4.12, Drizzle ORM ^0.45 + Drizzle Kit ^0.30, Zod ^4, OpenAuth.js ^0.4 (`@openauthjs/openauth`)
 - **Testing/tooling:** Vitest ^4 (built-in `bench` for perf regressions), ESLint ^9
 - **Local emulation & types:** Provided natively by SST v4 — `sst dev` runs the integrated Miniflare runtime; SST generates Worker binding types from `sst.config.ts` (no `wrangler dev`/`wrangler types`/`@cloudflare/workers-types` required). Wrangler CLI is **optional** and only used for ad-hoc Cloudflare operations outside the SST workflow (e.g., `wrangler tail` for live log streaming, `wrangler d1 execute` for one-off queries).
+  - **⚠️ DO types workaround:** `packages/functions/src/worker/sync-coordinator.ts` imports `DurableObjectState` from `@cloudflare/workers-types` as a **type-only** import. This is required because `cloudflare:workers` (which provides the `DurableObject` base class) is not importable in Vitest/Node. The DO class does **not** extend `DurableObject` — it is instantiated directly with `(ctx, userId)`. Intentional deviation from the "no @cloudflare/workers-types" principle; must be maintained until SST v4 provides a Vitest-compatible DO harness.
 - **Versions verified:** May 2026 — pin minimums in `package.json`; track latest with Renovate/Dependabot
 
 ---

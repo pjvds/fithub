@@ -107,7 +107,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 - [ ] AC-4: *(DEFERRED — mobile v2+)* Mobile client can upload an Apple Health activity payload; backend persists raw payload and canonical fields.
 - [ ] AC-5: Deduplication Engine merges activities matching at >85% confidence into one canonical record with multiple source references.
 - [ ] AC-6: *(DEFERRED — mobile v2+)* When new data is available for a user, backend sends a silent push within 60 seconds of ingestion.
-- [ ] AC-7: Client can fetch activities since a cursor and receives only new/updated records.
+- [ ] AC-7: Client can fetch activities using `GET /api/activities?cursor=<value>&limit=<n>` and receives paginated results; response includes `next_cursor` for subsequent pages.
 - [ ] AC-8: Failed external API calls retry with exponential backoff (5m, 15m, 30m, 1h, capped at 24h total window).
 - [ ] AC-9: An OAuth token marked as invalid (401/403 from platform) is flagged for user re-authentication; backend stops polling until reconnect.
 - [ ] AC-10: A user can disconnect a platform; backend revokes the token with the platform, deletes the token vault entry, and (per user choice) deletes or retains historical activities.
@@ -264,7 +264,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 - **FR-7:** System MUST merge activities scoring >85% confidence into a single canonical record with multiple `activity_sources` entries.
 - **FR-8:** System MUST flag activities scoring 70–85% for user confirmation and expose them via a `GET /api/dedup/pending` endpoint.
 - **FR-9:** *(DEFERRED — mobile v2+)* System MUST send a silent push notification to all of a user's registered devices within 60 seconds of ingesting new activities.
-- **FR-10:** System MUST expose `GET /api/activities?since=<cursor>` returning new/updated activities since the cursor, paginated.
+- **FR-10:** System MUST expose `GET /api/activities?cursor=<cursor>&limit=<n>` returning new/updated activities since the cursor, paginated; `cursor` is an opaque token returned as `next_cursor` in the previous response.
 - **FR-11:** System MUST expose `POST /api/connections/:platform/disconnect` that revokes the token with the platform, deletes the vault entry, and (per user-supplied flag) deletes or retains historical activities.
 - **FR-12:** System MUST persist sync work durably via Cloudflare Queues and Durable Objects; in-flight sync jobs survive Worker eviction and are retried automatically. (See also NFR-9.)
 - **FR-13:** System MUST distinguish transient (timeout, 429, 5xx) from permanent (401, 403, 404) errors; only transient errors enter retry queue.
