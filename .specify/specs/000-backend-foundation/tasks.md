@@ -51,9 +51,9 @@
 
 > Goal: Deployable SST app with D1 schema applied, `/health` returns 200, all Cloudflare bindings provisioned.
 
-- [ ] T001 🧪 Initialize SST v3 app with Cloudflare provider in `sst.config.ts`
+- [ ] T001 🧪 Initialize SST v4 (Ion) app with Cloudflare provider in `sst.config.ts` — pin `sst@^4.12`
 - [ ] T002 🧪 Configure monorepo structure: `packages/core/` (shared types, schemas, utils) and `packages/functions/` (Workers) per `quickstart.md`
-- [ ] T003 🧪 Add dev dependencies: `typescript`, `vitest`, `eslint`, `drizzle-orm`, `drizzle-kit`, `hono`, `zod`, `@cloudflare/workers-types`
+- [ ] T003 🧪 Add dependencies (minimum versions, May 2026): `typescript@^5.6`, `vitest@^4`, `eslint@^9`, `drizzle-orm@^0.45`, `drizzle-kit@^0.30`, `hono@^4.12`, `zod@^4`, `@openauthjs/openauth@^0.4`, `wrangler@latest`. Generate Worker types via `wrangler types` (run during build); keep `@cloudflare/workers-types@^4.20260418` only if a shared library package is published outside the SST app. Note: Zod 4 has API differences from Zod 3 (e.g., `z.email()` instead of `z.string().email()`) — use Zod 4 syntax in T009 schemas.
 - [ ] T004 [P] 🧪 Create Drizzle schema for all D1 tables in `drizzle/schema.ts`: users, connections, activities, activity_sources, dedup_pending, audit_log, push_devices, outbox_events, processed_events
 - [ ] T005 [P] 🧪 Define SST resource bindings in `sst.config.ts`: D1 database, KV namespaces (feed-cache, AUTH_KV), Queues (sync-jobs, retry-jobs, event-bus with DLQs), R2 bucket (blob-store), DO (UserSyncCoordinator), Cron Triggers; document Cloudflare WAF Rate Limiting rule configuration for mobile API endpoints (100 req/min per IP baseline)
 - [ ] T006 🧪 Generate and commit initial D1 migration via `drizzle-kit generate`

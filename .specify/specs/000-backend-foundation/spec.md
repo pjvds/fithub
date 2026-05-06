@@ -355,7 +355,7 @@ See `.specify/memory/architecture-overview.md` for the full system diagram. The 
 
 **Dependencies & Blockers:**
 
-- [x] Backend tech stack decision (language, framework, hosting) — **Resolved:** TypeScript + SST v3 + Cloudflare (see plan.md, research.md)
+- [x] Backend tech stack decision (language, framework, hosting) — **Resolved:** TypeScript + SST v4 (Ion) + Cloudflare (see plan.md, research.md)
 - [ ] User authentication strategy for FitHub itself (`001-user-authentication` feature) — assumed to exist; can be stubbed for early phases
 - [x] Encryption key management — **Resolved:** Workers Secrets with AES-256-GCM app-layer encryption (see AD-1, NFR-1)
 - [ ] APNs and FCM credentials provisioned (Apple Developer + Firebase project)

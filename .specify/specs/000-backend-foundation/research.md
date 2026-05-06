@@ -23,10 +23,10 @@
 
 ## R2: Infrastructure-as-Code Framework
 
-**Decision:** SST v3 (Ion) with Cloudflare provider
+**Decision:** SST v4 (Ion engine, Pulumi-based) with Cloudflare provider
 
 **Rationale:**
-- SST v3 has first-class Cloudflare support (Workers, D1, KV, Queues, R2, DO)
+- SST v4 has first-class Cloudflare support (Workers, D1, KV, Queues, R2, DO)
 - Resource linking (`Resource.Bucket`, `Resource.Queue`, etc.) provides type-safe bindings
 - Single `sst.config.ts` for all infrastructure; `sst dev` for local iteration
 - Active development by SST team; growing Cloudflare ecosystem
@@ -253,7 +253,7 @@ All NEEDS CLARIFICATION items from the plan's Technical Context are resolved. No
 | # | Topic | Decision | Constitution Alignment |
 |---|---|---|---|
 | R1 | Runtime | Cloudflare Workers | §5 Performance |
-| R2 | IaC | SST v3 | §6 Code Quality |
+| R2 | IaC | SST v4 (Ion) | §6 Code Quality |
 | R3 | Database | D1 | §5 Performance |
 | R4 | Auth | OpenAuth.js / SST Auth | §1 Privacy, §4 Reliability |
 | R5 | Event bus | Outbox → Queues | §4 Reliability, §2 Integration |

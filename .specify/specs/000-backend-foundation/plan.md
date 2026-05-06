@@ -10,7 +10,10 @@
 
 **Date:** 2026-05-05
 
-**Tech Stack:** TypeScript + SST + Cloudflare (Workers, D1, Durable Objects, Queues, KV, R2, Cron Triggers, Secrets)
+**Tech Stack:** TypeScript ^5.6 + SST v4 (Ion) + Cloudflare (Workers, D1, Durable Objects, Queues, KV, R2, Cron Triggers, Secrets)
+- **Frameworks/runtimes:** Hono ^4.12, Drizzle ORM ^0.45 + Drizzle Kit ^0.30, Zod ^4, OpenAuth.js ^0.4 (`@openauthjs/openauth`)
+- **Testing/tooling:** Vitest ^4 (built-in `bench` for perf regressions), ESLint ^9, Wrangler latest (provides `wrangler dev` for local emulation; `wrangler types` for Worker type generation)
+- **Versions verified:** May 2026 — pin minimums in `package.json`; track latest with Renovate/Dependabot
 
 ---
 
@@ -630,12 +633,14 @@ class UserSyncCoordinator {
 - **FCM** — HTTP v1 API; auth via OAuth2 service account
 - **Cloudflare** (implicit) — at-rest encryption for D1, KV, DO storage (platform-managed)
 
-**Internal Dependencies:**
-- `sst` — IaC framework, latest stable
-- `hono` — HTTP framework, ^4.x
-- `drizzle-orm` + `drizzle-kit` — ORM + migrations
-- `zod` — Runtime validation
-- `@cloudflare/workers-types` — Type definitions
+**Internal Dependencies (minimum versions, May 2026):**
+- `sst` ^4.12 — IaC framework (Ion engine, Pulumi-based)
+- `hono` ^4.12 — HTTP framework
+- `drizzle-orm` ^0.45 + `drizzle-kit` ^0.30 — ORM + migrations (D1 driver: `drizzle-orm/d1`)
+- `zod` ^4 — Runtime validation (note: Zod 4 API differences vs 3, e.g. `z.email()` instead of `z.string().email()`)
+- `@openauthjs/openauth` ^0.4 — OpenAuth.js issuer for `auth` Worker
+- `wrangler` latest — local dev (`wrangler dev`) and type generation (`wrangler types`); preferred over standalone `@cloudflare/workers-types`, which remains pinned at `^4.20260418` only as a fallback for shared library packages
+- `typescript` ^5.6, `vitest` ^4, `eslint` ^9 — dev tooling
 
 ---
 
@@ -691,7 +696,7 @@ class UserSyncCoordinator {
 ### 6. Code Quality & Testing
 **Compliance Strategy:**
 - [x] Test Coverage: Vitest for units; target ≥80%
-- [x] Integration Tests: Miniflare/Wrangler local emulator; mock platform APIs with MSW
+- [x] Integration Tests: `wrangler dev` for local emulation (Miniflare runtime integrated; standalone Miniflare deprecated as of 2026); mock platform APIs with MSW
 - [x] E2E Tests: Staging deploys with mock platform sandbox; mobile fixture client
 - [x] Code Review: GitHub PR with required review; lint + tests in CI gating
 - [x] Static Analysis: ESLint + TypeScript strict mode; `tsc --noEmit` in CI
@@ -871,7 +876,7 @@ Phase 1 → Phase 2 → Phase 3 → Phase 5 → Phase 8
 - Adapter mocks
 - **Target:** ≥80% line coverage per module
 
-**Integration Testing (Miniflare + MSW):**
+**Integration Testing (`wrangler dev` + MSW):**
 - OAuth flow end-to-end with mocked Zwift/Strava
 - Webhook handler with mocked Strava event
 - Sync orchestration: queue → worker → DO → D1
