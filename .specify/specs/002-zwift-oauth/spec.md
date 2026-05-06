@@ -1,5 +1,9 @@
 # Feature Specification: Zwift OAuth Integration
 
+> **Status: SUPERSEDED (2026-05-06).** This Flutter-mobile-oriented OAuth spec is superseded by a future `006-zwift-oauth-web` spec that defines the server-driven OAuth flow used by the v1 Astro web frontend. Tokens already live server-side per `architecture-overview.md` AD-1, so the migration is mostly UI/redirect related. Retained here for historical context — **do not implement against this spec.**
+
+---
+
 ## Overview
 
 **Feature Name:** Zwift OAuth Integration

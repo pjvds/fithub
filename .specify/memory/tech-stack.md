@@ -1,8 +1,11 @@
 # FitHub Tech Stack Decisions
 
 **Locked as of:** May 5, 2026  
+**Last Amended:** May 6, 2026 (mobile postponed; web frontend (Astro) added as primary client)
 **Status:** Final (blocking decisions resolved)
 **Architecture Reference:** See `.specify/memory/architecture-overview.md` for the hybrid backend-driven model.
+
+> **Pivot note (2026-05-06):** Native mobile development is **postponed**. The user-facing client for v1 is a **web app built with Astro on Cloudflare**, hosted inside the same SST project as the API. Flutter mobile decisions captured below are preserved under "Future: Mobile (Postponed)" for when native clients are revisited. Apple Health integration is postponed with mobile (HealthKit is iOS-only and has no web equivalent).
 
 ---
 
@@ -39,8 +42,8 @@
 
 **Out of Scope (v2+):**
 - Multi-region replication beyond Cloudflare's defaults
-- Web client / dashboard
 - Analytics pipeline (BigQuery, ClickHouse, etc.)
+- Native mobile clients (postponed; see "Future: Mobile (Postponed)" below)
 
 ---
 
@@ -63,8 +66,8 @@
 - JWT (RS256) issued by `auth`, validated by `api` via JWKS endpoint
 
 **Providers (MVP):**
-- Sign in with Apple (mandatory on iOS App Store when offering other social logins)
-- Sign in with Google (Android-friendly; cross-platform)
+- Sign in with Apple (cross-platform via OAuth; Apple-ID web flow)
+- Sign in with Google
 - Email magic-link (universal fallback; no password storage)
 
 **Deferred to v1.1+:**
@@ -72,27 +75,59 @@
 - MFA / TOTP
 - Account deletion self-service flow
 
-**Mobile Integration:**
-- `flutter_appauth` opens `https://auth.fithub.app/authorize?...` in `ASWebAuthenticationSession` (iOS) / Custom Tabs (Android)
-- PKCE flow returns JWT; stored in iOS Keychain / Android Keystore
-- `app_links` package handles magic-link deep links (`https://app.fithub.app/auth/callback?code=...`)
+**Web Integration:**
+- Astro frontend redirects unauthenticated users to `https://auth.fithub.app/authorize?...`
+- PKCE flow returns JWT; stored in `HttpOnly`, `Secure`, `SameSite=Lax` cookie set by the auth Worker on the apex/eTLD+1 shared with the web app
+- Magic-link callback handled by an Astro route or a dedicated Worker route on `auth.fithub.app/callback`
 
 **Email Delivery:**
-- Provider TBD in `001-user-authentication` spec (Resend, Postmark, or SES via worker-mailer)
+- Provider TBD in `005-web-frontend` (or a future auth feature spec): Resend, Postmark, or SES via worker-mailer
 
 **Alternatives Considered:**
-- **Clerk** — best mobile DX (RN/iOS/Android SDKs mature; Flutter SDK newer/uncertain), polished widgets, but per-user pricing and US-hosted
-- **Auth0** — mature `auth0_flutter` SDK, but expensive and adds external dependency
+- **Clerk** — polished UI widgets and mature SDKs, but per-user pricing and US-hosted
+- **Auth0** — mature, but expensive and adds external dependency
 - **Better Auth** — modern TypeScript-first, but newer; less proven on Workers
 - **Roll our own** — security risk; reinventing OAuth, recovery, MFA
 
 ---
 
-## Mobile Framework
+## Web Frontend (Primary Client for v1)
 
-**Decision:** Flutter (Dart)
+**Decision:** Astro on Cloudflare (deployed via SST)
 
 **Rationale:**
+- First-class Cloudflare Pages / Workers Static Assets support; lives inside the same SST project as the API → typed `Resource.*` bindings, shared `@fithub/core` schemas, single deploy
+- "Islands" architecture: ship mostly static HTML; hydrate only the interactive parts (sync trigger, charts) → small JS payload, fast TTFB
+- Comfortable for both content pages (marketing/landing) and an authed dashboard, deferring framework re-decisions
+- TypeScript-native; reuses Zod schemas and Drizzle types from `packages/core`
+
+**Topology:**
+- Single Astro project at `web/` (npm workspace member)
+- Server routes (`web/src/pages/api/*.ts`) run as Cloudflare Workers when needed; static routes export to HTML
+- Custom domain: `app.fithub.app` (web app), `auth.fithub.app` (OpenAuth Worker)
+- Authenticated session: `HttpOnly` cookie issued by `auth` Worker; `api` Worker validates JWT via JWKS
+
+**Dependencies:**
+- `astro` (latest)
+- `@astrojs/cloudflare` — adapter for Cloudflare deployment
+- Optional islands: any framework supported by Astro (preact / vue / solid / svelte / react) — chosen at first interactive-component need
+- `tailwindcss` (or comparable) — styling; final pick deferred to `005-web-frontend`
+
+**Out of Scope (v1):**
+- SSR-heavy pages with personalized server-side rendering at scale (Astro can do it; we just don't need it for MVP)
+- Service-worker-based offline mode (web v1 is online-only)
+
+---
+
+## Future: Mobile (Postponed)
+
+> **Status: postponed.** Mobile development resumes in a future spec (currently no number assigned). When revived, the framework decision will be **re-evaluated**, not assumed to be Flutter — Flutter Web caveats (bundle size, no HealthKit on web, plugin gaps) surfaced during the 2026-05-06 pivot suggest other options (React Native/Expo, Capacitor, native SwiftUI/Kotlin) deserve a fresh comparison.
+>
+> The decisions captured below reflect the May 5, 2026 plan and are retained as **historical context only**. They are NOT binding on a future mobile spec.
+
+**Historical Decision (postponed):** Flutter (Dart)
+
+**Original Rationale:**
 - 50% faster development vs Native iOS+Android
 - ~85% quality comparable to Native
 - Excellent HealthKit support (`health` package, 100K+ downloads)
@@ -100,57 +135,27 @@
 - Type-safe language (Dart) catches bugs early
 - Shared codebase for iOS/Android
 
-**Platform Channels:**
+**Original Platform Channels:**
 - HealthKit (iOS): Swift platform channel
 - Keychain (iOS): Swift platform channel
 - Keystore (Android): Kotlin platform channel
 
-**Dependencies:**
+**Original Dependencies:**
 - `flutter_appauth` — OAuth 2.0 with PKCE
 - `health` — HealthKit queries (iOS) + Health Connect (Android, v2+)
 - `sqflite` — SQLite wrapper
 - `encrypted_shared_preferences` — Token storage
 - `background_fetch` — Background sync scheduling
 
----
+**Original Local Database:** SQLite via `sqflite` (raw SQL migrations, no ORM)
 
-## Local Database
+**Original Android Health Integration:** Health Connect deferred to v2
 
-**Decision:** SQLite via `sqflite`
-
-**Rationale:**
-- Industry standard (no lock-in risk)
-- Excellent query patterns for deduplication algorithm
-- Simple migration strategy (raw SQL scripts)
-- Native support on iOS and Android
-- 50MB+ datasets performant (indexed queries)
-
-**Schema Locations:**
-- `lib/data/database/schemas/` — SQL migration files
-- `lib/data/models/` — Dart entity classes
-- `lib/data/repositories/` — Query layer (repository pattern)
-
-**Migration Strategy:**
-- Version-based migrations (v1.sql, v2.sql, ...)
-- No ORM (raw queries for performance)
-- Backup/export via sqflite API
-
----
-
-## Android Health Integration
-
-**Decision:** Skip Android Health Connect for MVP
-
-**Rationale:**
-- Launch iOS first (Zwift/Strava/HealthKit)
-- Android Health Connect adds 3-4 weeks scope (parallel implementation)
-- iOS HealthKit covers immediate dogfooding needs
-- Android Health Connect planned for v2 (post-launch)
-
-**Future (v2+):**
-- Android Health Connect integration
-- Parallel schema to HealthKit (different permission model)
-- Reuse OAuth Manager and Normalizer for Zwift/Strava on Android
+**When Mobile Resumes — Open Questions:**
+- Framework: Flutter? React Native/Expo? Capacitor + the web app? Native?
+- Code-share strategy with the web app (none / OpenAPI-generated client / shared TypeScript via wrapper)
+- Apple Health integration approach (the only data source that strictly requires native; everything else can run in a webview/PWA)
+- Offline strategy (the original Flutter plan included a local SQLite read cache)
 
 ---
 
@@ -186,30 +191,31 @@
 
 ---
 
-## Architectural Model (Updated 2026-05-05)
+## Architectural Model (Updated 2026-05-06)
 
-**Decision:** Hybrid backend-driven (see `.specify/memory/architecture-overview.md`)
+**Decision:** Backend-driven; web client for v1 (mobile postponed). See `.specify/memory/architecture-overview.md`.
 
-- **Cloud platforms (Zwift, Strava):** Backend-driven. OAuth tokens live server-side. Backend polls/receives webhooks; pushes to mobile via APNs/FCM.
-- **Device-local sources (Apple Health):** Mobile-driven. HealthKit data stays on device; mobile pushes deltas to backend via REST.
+- **Cloud platforms (Zwift, Strava):** Backend-driven. OAuth tokens live server-side. Backend polls/receives webhooks.
+- **Device-local sources (Apple Health):** **Postponed** with mobile. Web cannot access HealthKit; revisit when a native client returns.
 - **Backend** is source of truth for cloud-platform data and the consolidated/deduplicated canonical store.
-- **Mobile SQLite** is a read-optimized projection of backend data, plus a write-buffer for Apple Health pre-upload.
+- **Web client** reads from the API; is stateless beyond session cookies. No local cache layer in v1 (browser HTTP cache only).
+- **Push notifications** (originally APNs/FCM to mobile) are postponed; web app uses standard HTTP polling or, optionally later, server-sent events / Web Push.
 
-This **supersedes** the earlier "local-first, no backend until v2+" position.
+This **supersedes** the earlier "local-first, no backend until v2+" and the May 5 "Flutter mobile primary" positions.
 
 ---
 
 ## Security Implications
 
 **Token Storage (Updated):**
-- ✅ **Cloud platform tokens (Zwift, Strava):** Stored server-side in D1, AES-256-GCM encrypted at application layer; master key in Cloudflare Workers Secrets. Tokens never sent to mobile.
-- ✅ **FitHub session tokens on mobile:** Stored in iOS Keychain / Android Keystore (system-managed). These are FitHub's own auth tokens, not platform OAuth tokens.
-- ✅ **Apple Health:** No tokens needed (permission-based local SDK).
+- ✅ **Cloud platform tokens (Zwift, Strava):** Stored server-side in D1, AES-256-GCM encrypted at application layer; master key in Cloudflare Workers Secrets. Tokens never sent to the client.
+- ✅ **FitHub session tokens on web:** `HttpOnly`, `Secure`, `SameSite=Lax` cookies set by the auth Worker. Not accessible to JavaScript.
+- ⏸️ **Apple Health:** Postponed with mobile (no web equivalent).
 
 **OAuth Flows (Updated):**
 - ✅ PKCE for cloud platforms (Zwift, Strava)
-- ✅ OAuth flow initiated on mobile, redirect handled by backend; backend exchanges code for tokens; mobile receives only a connection confirmation
-- ✅ System OAuth dialog or in-app browser (no custom WebView, avoids interception)
+- ✅ OAuth flow initiated from the web app (`/connect/{platform}` redirects to `auth.fithub.app/oauth/{platform}/start`); backend exchanges code for tokens; client receives only a connection confirmation
+- ✅ Standard browser redirect (no popup, no in-app webview)
 
 **Encryption at Rest (Backend):**
 - D1 storage encrypted at infrastructure layer by Cloudflare
@@ -220,20 +226,14 @@ This **supersedes** the earlier "local-first, no backend until v2+" position.
 
 ## Deployment Pipeline
 
-**Backend:**
-- SST deploys Workers, D1, Durable Objects, Queues, Cron Triggers, KV namespaces, R2 buckets
+**Backend + Web (single SST app):**
+- SST deploys Workers, D1, Durable Objects, Queues, Cron Triggers, KV namespaces, R2 buckets, **and the Astro web app** (Cloudflare static assets / Pages)
 - R2 buckets are accessed in Workers via SST resource linking (`link: [bucket]` → `Resource.Bucket.get(path)`). This binding model takes a relative path as input, which naturally enforces the AD-5 "path-only blob references in events" convention — consumer code cannot accidentally leak a fully-qualified R2 URL into an event payload.
 - Environments: `dev` (per-developer), `staging`, `production`
 - Secrets managed via SST + Cloudflare Workers Secrets
-- CI/CD: GitHub Actions → `sst deploy --stage <env>`
+- CI/CD: GitHub Actions → `sst deploy --stage <env>` (single command builds Workers + Astro)
 
-**Mobile (Phase 1 MVP):**
-- iOS TestFlight beta
-- Android Google Play internal testing
-
-**Mobile (Phase 2 v1.0):**
-- iOS App Store
-- Android Google Play
+**Mobile:** Postponed. When revived, deployment pipeline (TestFlight, Play Store) will be specified in the future mobile spec.
 
 ---
 

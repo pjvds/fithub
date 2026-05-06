@@ -1,5 +1,9 @@
 # Feature Specification: Strava OAuth Integration
 
+> **Status: SUPERSEDED (2026-05-06).** This Flutter-mobile-oriented OAuth spec is superseded by a future `007-strava-oauth-web` spec that defines the server-driven OAuth + webhook flow used by the v1 Astro web frontend. Retained here for historical context — **do not implement against this spec.**
+
+---
+
 **Feature Name:** Strava OAuth Integration
 
 **Feature ID:** 003-strava-oauth

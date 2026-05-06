@@ -1,5 +1,9 @@
 # Feature Specification: Apple Health Integration
 
+> **Status: POSTPONED (2026-05-06).** Apple HealthKit is iOS-only and has no web equivalent; with v1 focused on backend + Astro web, this feature cannot be implemented yet. Revisit when a native mobile client is on the roadmap. The architectural design (events, ingestion endpoint, dedup rules) is preserved in `.specify/memory/architecture-overview.md` so reviving this is a small lift. **Do not implement against this spec.**
+
+---
+
 **Feature Name:** Apple Health Integration
 
 **Feature ID:** 004-apple-health-integration

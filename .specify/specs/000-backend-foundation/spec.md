@@ -1,5 +1,9 @@
 # Feature Specification: Backend Foundation
 
+> **Pivot note (2026-05-06):** This spec was authored when mobile (Flutter) was the planned v1 client. Per the 2026-05-06 pivot, the v1 user-facing client is the **web app** (`005-web-frontend`); native mobile is **postponed**. References below to "mobile" / "Push Service" / "Apple Health upload endpoint" remain valid as forward-looking architecture (the events and endpoints are designed for that future client) but **the Push Notification Worker and `/api/health/upload` are not built or exposed in v1**. See `.specify/memory/architecture-overview.md` (AD-1, AD-3) for the canonical pivot record.
+
+---
+
 ## Feature Overview
 
 **Feature Name:** Backend Foundation (API Gateway, OAuth Vault, Sync Orchestrator, Deduplication Engine, Push Service)

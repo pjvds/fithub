@@ -1,5 +1,9 @@
 # Implementation Plan: Backend Foundation
 
+> **Pivot note (2026-05-06):** v1 client is **web (Astro)** — see `005-web-frontend`. Native mobile is **postponed**. Push Notification Worker and `/api/health/upload` endpoint remain in the architecture but are **not built in v1**. The rest of this plan (D1, R2, Queues, OAuth Vault, Sync Orchestrator, Dedup, Outbox) ships unchanged. Canonical pivot reference: `.specify/memory/architecture-overview.md`.
+
+---
+
 ## Plan Overview
 
 **Feature:** Backend Foundation (Reference: `.specify/specs/000-backend-foundation/spec.md`)
