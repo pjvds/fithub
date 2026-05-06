@@ -6,6 +6,7 @@ export interface CloudEvent<T = unknown> {
   time: string;
   subject?: string;
   datacontenttype?: "application/json";
+  correlationid?: string;
   data: T;
 }
 
@@ -31,6 +32,7 @@ export function newCloudEvent<T>(input: {
   data: T;
   subject?: string;
   occurredAt?: Date;
+  correlationId?: string;
 }): CloudEvent<T> {
   return {
     specversion: "1.0",
@@ -39,6 +41,7 @@ export function newCloudEvent<T>(input: {
     type: input.type,
     time: (input.occurredAt ?? new Date()).toISOString(),
     ...(input.subject !== undefined ? { subject: input.subject } : {}),
+    ...(input.correlationId !== undefined ? { correlationid: input.correlationId } : {}),
     datacontenttype: "application/json",
     data: input.data,
   };

@@ -8,6 +8,7 @@ import { connectionsRouter } from "./routes/connections.js";
 import { createWebhooksRouter } from "./routes/webhooks.js";
 import { createActivitiesRouter } from "./routes/activities.js";
 import { createSyncRouter } from "./routes/sync.js";
+import { createDedupRouter } from "./routes/dedup.js";
 
 interface AppEnv {
   Bindings: Record<string, never>;
@@ -54,6 +55,7 @@ authedRoutes.get("/me", (c) => c.json({ userId: c.get("userId") }));
 authedRoutes.route("/connections", connectionsRouter);
 authedRoutes.route("/activities", createActivitiesRouter());
 authedRoutes.route("/sync", createSyncRouter());
+authedRoutes.route("/dedup", createDedupRouter());
 
 app.route("/api", authedRoutes);
 

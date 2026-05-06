@@ -37,6 +37,29 @@
 - **Q:** Which state changes should emit domain events?
   **A:** **Domain events only** — emit events for business-significant state changes where another service or the user needs to react. Internal mechanics (token refresh success, retry scheduling, cache warm) stay within the owning Worker. Guiding principle: *if only the owning Worker cares, don't emit*. It's easier to promote an internal event to a domain event later than to remove one consumers depend on.
 
+### Session 2026-05-06 (Amendment: Dedup Reasoning)
+
+- **Q:** Should the deduplication engine explain its reasoning to users — both why it *does* and *does not* think two activities are duplicates?
+  **A:** **Yes — structured, human-readable reasoning is a first-class requirement.** Every dedup evaluation MUST produce a `DedupReasoning` object that enumerates each scoring factor's contribution. This object MUST be:
+  1. **Stored** in a new `dedup_evaluations` table for all outcomes where confidence ≥50%, and always for auto-merge outcomes — enabling retrospective lookup even after a pending row is resolved.
+  2. **Returned** in `GET /api/dedup/pending` alongside each flagged item.
+  3. **Accessible** via `GET /api/activities/:id/dedup` so clients can show why an activity was or was not merged.
+
+  The reasoning format:
+  ```json
+  {
+    "confidence": 0.78,
+    "outcome": "pending",
+    "factors": [
+      { "dimension": "activityType", "label": "Activity type",        "earned": 30, "max": 30, "passed": true,  "detail": "Both are 'ride' activities" },
+      { "dimension": "startTime",    "label": "Start time proximity", "earned": 30, "max": 30, "passed": true,  "detail": "Started 2 min 14 sec apart (within ±5 min window)" },
+      { "dimension": "duration",     "label": "Duration similarity",  "earned": 25, "max": 25, "passed": true,  "detail": "Duration differs by 4% (within ±10% tolerance)" },
+      { "dimension": "distance",     "label": "Distance similarity",  "earned":  0, "max": 15, "passed": false, "detail": "Distance differs by 8% (exceeds ±5% tolerance)" }
+    ]
+  }
+  ```
+  For "no-match" outcomes (confidence < 70% but ≥ 50%), `outcome` is `"no_match"` and the same structure explains which factors failed. For activities where NO candidate is found within the ±15-minute window, the response returns an empty `evaluations` array with a `summary` of `"No nearby activities found within the ±15-minute window"`. Rationale: users make better merge/separate decisions when they understand the evidence; hiding the algorithm erodes trust.
+
 ---
 
 ## Problem Statement
@@ -99,6 +122,18 @@ I want my activities to appear consistently across devices and the web,
 so that I have a single, unified workout history regardless of how I access FitHub.
 ```
 
+```
+As a user reviewing a potential duplicate flagged by FitHub,
+I want to see exactly why the system thinks two activities might be the same — broken down per factor (type, timing, duration, distance) —
+so that I can make an informed merge or separate decision without guessing.
+```
+
+```
+As a user inspecting an activity in my history,
+I want to understand why FitHub did not merge it with a nearby activity from another platform,
+so that I can trust the system's reasoning and manually investigate if something looks wrong.
+```
+
 **Acceptance Criteria**
 
 - [ ] AC-1: A web client can complete an OAuth flow for a cloud platform; tokens are stored server-side, never returned to the client.
@@ -111,6 +146,9 @@ so that I have a single, unified workout history regardless of how I access FitH
 - [ ] AC-8: Failed external API calls retry with exponential backoff (5m, 15m, 30m, 1h, capped at 24h total window).
 - [ ] AC-9: An OAuth token marked as invalid (401/403 from platform) is flagged for user re-authentication; backend stops polling until reconnect.
 - [ ] AC-10: A user can disconnect a platform; backend revokes the token with the platform, deletes the token vault entry, and (per user choice) deletes or retains historical activities.
+- [ ] AC-11: `GET /api/dedup/pending` MUST return a `reasoning` object per item containing: overall `confidence` (float 0–1), `outcome` (`"pending"`), and a `factors` array with one entry per scoring dimension — each entry MUST include `dimension`, `label`, `earned` (points awarded), `max` (maximum possible points), `passed` (bool), and `detail` (human-readable English explanation of why the dimension passed or failed).
+- [ ] AC-12: The dedup consumer MUST write a row to `dedup_evaluations` for every evaluation where confidence ≥50% (regardless of outcome), and for every auto-merge (confidence >85%), so that retrospective "why not a duplicate" lookups are possible even after `dedup_pending` rows are resolved.
+- [ ] AC-13: `GET /api/activities/:id/dedup` (authenticated) MUST return the dedup evaluation history for the given activity, including the structured `reasoning` for each comparison, enabling clients to surface "why was / wasn't this merged?" to the user. If no evaluations exist and no candidates were found within the window, the response MUST include a human-readable `summary` explaining this.
 
 ---
 
@@ -210,11 +248,14 @@ so that I have a single, unified workout history regardless of how I access FitH
    - Auto-merge at >85%, user-confirm at 70-85%, separate at <70%
    - Per-field fidelity ranking when merging (e.g., Strava distance > Zwift distance)
    - Idempotent: re-running on same data yields same result
+   - **Generates structured `DedupReasoning` per evaluation:** per-factor breakdown (`dimension`, `label`, `earned`, `max`, `passed`, `detail`) exposed to clients for transparent decision-making
+   - **Persists all evaluations ≥50% confidence** (and all auto-merges) to `dedup_evaluations` for retrospective "why not a duplicate" queries
 
 5. **Canonical Activity Store**
-   - D1 tables: `users`, `connections`, `activities`, `activity_sources`, `dedup_pending`, `audit_log`, `push_devices`, `outbox_events`, `processed_events`
+   - D1 tables: `users`, `connections`, `activities`, `activity_sources`, `dedup_pending`, `dedup_evaluations`, `audit_log`, `push_devices`, `outbox_events`, `processed_events`
    - Raw platform payloads stored in R2 blob storage at deterministic paths; `activity_sources` stores reference metadata
    - Schema versioning to support re-normalization
+   - `dedup_evaluations`: persists dedup outcome + structured reasoning JSON for every evaluation ≥50% confidence and all auto-merges; columns: `id`, `userId`, `activityId` (FK), `comparedToId` (nullable FK — best match candidate), `confidence` (integer 0–100), `outcome` (`merged|pending|no_match`), `reasoningJson` (serialised `DedupReasoning`), `evaluatedAt`
 
 6. **Push Notification Service** *(DEFERRED — mobile v2+)*
    - APNs (iOS) and FCM (Android) integration
@@ -262,7 +303,7 @@ so that I have a single, unified workout history regardless of how I access FitH
 - **FR-5:** *(DEFERRED — mobile v2+)* System MUST accept mobile uploads of Apple Health activity payloads via authenticated REST endpoint.
 - **FR-6:** System MUST run the deduplication algorithm on every newly ingested activity, regardless of source.
 - **FR-7:** System MUST merge activities scoring >85% confidence into a single canonical record with multiple `activity_sources` entries.
-- **FR-8:** System MUST flag activities scoring 70–85% for user confirmation and expose them via a `GET /api/dedup/pending` endpoint.
+- **FR-8:** System MUST flag activities scoring 70–85% for user confirmation and expose them via a `GET /api/dedup/pending` endpoint; each item MUST include a `reasoning` field per FR-18.
 - **FR-9:** *(DEFERRED — mobile v2+)* System MUST send a silent push notification to all of a user's registered devices within 60 seconds of ingesting new activities.
 - **FR-10:** System MUST expose `GET /api/activities?cursor=<cursor>&limit=<n>` returning new/updated activities since the cursor, paginated; `cursor` is an opaque token returned as `next_cursor` in the previous response.
 - **FR-11:** System MUST expose `POST /api/connections/:platform/disconnect` that revokes the token with the platform, deletes the vault entry, and (per user-supplied flag) deletes or retains historical activities.
@@ -272,6 +313,9 @@ so that I have a single, unified workout history regardless of how I access FitH
 - **FR-15:** System MUST log every token operation (issue, refresh, revoke, fail) and every external API call (without payload, only metadata) and retain audit records for ≥7 years (GDPR compliance; operational hot-tier: 90 days in D1; archive: R2 per T063a).
 - **FR-16:** System MUST expose `POST /api/connections/:platform/oauth/initiate` returning a redirect URL with a PKCE challenge bound to the current session.
 - **FR-17:** System MUST expose `POST /api/connections/:platform/oauth/callback` accepting `code` + `state`, verifying the PKCE verifier, exchanging the code for tokens, and persisting them via the OAuth Vault.
+- **FR-18:** `GET /api/dedup/pending` MUST include a `reasoning` field per item. `reasoning` MUST contain: `confidence` (float 0–1), `outcome` (`"pending"`), and a `factors` array with one entry per scoring dimension (`activityType`, `startTime`, `duration`, `distance`) — each entry MUST include: `dimension` (string identifier), `label` (human-readable dimension name), `earned` (integer, points awarded), `max` (integer, maximum possible points), `passed` (boolean), and `detail` (non-localised English string explaining why the dimension passed or failed, including specific measurements where applicable).
+- **FR-19:** The dedup consumer MUST persist a `dedup_evaluations` row for every evaluation where confidence ≥50% (outcomes: `merged`, `pending`, or `no_match`). Each row stores `activityId`, `comparedToId` (best match; nullable when no candidate was found), `confidence` (integer 0–100), `outcome`, and `reasoningJson` (serialised `DedupReasoning`). This enables retrospective "why not a duplicate" queries after `dedup_pending` rows are resolved.
+- **FR-20:** System MUST expose `GET /api/activities/:id/dedup` (authenticated; activity must belong to requesting user) returning the `dedup_evaluations` rows for the given activity as an `evaluations` array. Each item MUST include `comparedToId`, `confidence`, `outcome`, `evaluatedAt`, and the full `reasoning` object. If no evaluations exist and no candidates were found within the ±15-minute window, the response MUST include a `summary` string: `"No activities were found within the ±15-minute window when this activity was ingested"`. A 404 is returned only when the activity itself does not exist or does not belong to the user.
 
 ### Non-Functional Requirements
 

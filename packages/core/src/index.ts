@@ -6,3 +6,4 @@ export * from "./crypto/index.js";
 export * from "./adapters/index.js";
 export * from "./audit/index.js";
 export * from "./sync/index.js";
+export * from "./dedup/index.js";

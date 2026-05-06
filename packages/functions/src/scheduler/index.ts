@@ -27,10 +27,11 @@ async function runSchedulerTick(cron: string): Promise<void> {
     App?: { stage?: string };
   };
   const stage = (Resource as unknown as { App?: { stage?: string } }).App?.stage ?? "unknown";
+  const correlationId = crypto.randomUUID();
   const log = createLogger({
     service: "scheduler",
     env: stage,
-    correlationId: crypto.randomUUID(),
+    correlationId,
   });
 
   log.info(LogEvent.schedulerTickStarted, { cron });
@@ -38,7 +39,7 @@ async function runSchedulerTick(cron: string): Promise<void> {
   const db = drizzle(r.FithubDb);
 
   if (isZwiftPoll(cron)) {
-    await enqueueZwiftSyncs(db, r.SyncJobs, log);
+    await enqueueZwiftSyncs(db, r.SyncJobs, log, correlationId);
   } else if (isStravaReconcile(cron)) {
     await reconcileStravaConnections(db, log);
   }
@@ -60,6 +61,7 @@ async function enqueueZwiftSyncs(
   db: ReturnType<typeof drizzle>,
   queue: Queue<SyncJobMessage>,
   log: ReturnType<typeof createLogger>,
+  correlationId: string,
 ): Promise<void> {
   const activeZwift = await db
     .select()
@@ -77,6 +79,7 @@ async function enqueueZwiftSyncs(
       connectionId: conn.id,
       jobId,
       attempt: 0,
+      correlationId,
     };
 
     await queue.send(msg);

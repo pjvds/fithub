@@ -82,7 +82,7 @@
 - [X] T015c [P] 📢 Define error-code taxonomy in `packages/core/src/logging/error-codes.ts` — typed enum used on every `error`-level entry; `LoggedError` class for thrown errors carrying a code
 - [X] T015d 📢 Implement correlation-ID + logger middleware in `packages/functions/src/api/middleware/correlation.ts` and `.../logger.ts` — reads `x-correlation-id` / `x-request-id`, mints UUID otherwise, propagates into Hono context, response header, and request-scoped `Logger`
 - [X] T015e 📢 Refactor `auth.ts`, `api/index.ts`, `outbox-relay/index.ts` to use the structured logger (no `console.*` outside the logger module)
-- [ ] T015f 📢 [NFR-6] Add `correlationId` field to `SyncJobMessage` interface in `packages/functions/src/worker/index.ts` and to the outbox CloudEvents `data` envelope in `packages/core/src/events/types.ts` — scheduler and webhook handlers must forward the request-scoped `correlationId` into enqueued messages; sync worker must initialize its scoped logger with the `correlationId` from the message; enables end-to-end trace stitching across HTTP → queue → worker hops; **tests:** round-trip `SyncJobMessage` with `correlationId` field; verify CloudEvents `data` envelope carries `correlationId`; verify scheduler enqueues messages with `correlationId` set from request context
+- [X] T015f 📢 [NFR-6] Add `correlationId` field to `SyncJobMessage` interface in `packages/functions/src/worker/index.ts` and to the outbox CloudEvents `data` envelope in `packages/core/src/events/types.ts` — scheduler and webhook handlers must forward the request-scoped `correlationId` into enqueued messages; sync worker must initialize its scoped logger with the `correlationId` from the message; enables end-to-end trace stitching across HTTP → queue → worker hops; **tests:** round-trip `SyncJobMessage` with `correlationId` field; verify CloudEvents `data` envelope carries `correlationId`; verify scheduler enqueues messages with `correlationId` set from request context
 - [X] T016 🔐 Implement token encryption module in `packages/core/src/crypto/token-vault.ts` — `encrypt(plaintext, masterKey)` → `v1:iv:ciphertext:tag` (base64); `decrypt(ciphertext, masterKey)` → plaintext; AES-256-GCM; uses Web Crypto API
 - [X] T017 [P] 🔗 Define `PlatformAdapter` interface in `packages/core/src/adapters/types.ts` — `fetchActivities(token, since?)`, `refreshToken(refreshToken)`, `validateToken(token)`, `revokeToken(token)`; `CanonicalActivity` type
 - [X] T018 [P] 📢 Implement audit log module in `packages/core/src/audit/logger.ts` — `logAuditEvent(db, {userId, eventType, platform, metadata})` inserts into audit_log table; metadata is JSON (no PII, no tokens, no payloads)
@@ -139,19 +139,26 @@
 
 > **User Story (active):** General dedup engine: processes `activity.ingested` events from all platforms (Zwift, Strava) and resolves duplicates.
 >
+> **User Story (active — Amendment):** "As a user reviewing a potential duplicate, I want to see why the system thinks these activities might be the same, so I can make an informed merge/separate decision." — FR-18, FR-19, FR-20
+>
 > **User Story (deferred):** "As the FitHub mobile app, I want to upload Apple Health activities to the backend…" — T042, T043, T046 postponed; see mobile v2+.
 >
-> **Acceptance Criteria:** AC-5 (dedup >85% auto-merge), AC-7 (paginated fetch includes deduped data)
+> **Acceptance Criteria:** AC-5 (dedup >85% auto-merge), AC-7 (paginated fetch includes deduped data), AC-11 (reasoning in pending), AC-12 (dedup_evaluations persistence), AC-13 (GET /api/activities/:id/dedup)
 >
-> **Independent test:** Ingest matching activities from Zwift + Strava → dedup runs → matching activities merged; pending dedup decisions surfaced at `/api/dedup/pending`; resolve decision.
+> **Independent test:** Ingest matching activities from Zwift + Strava → dedup runs → matching activities merged; pending dedup decisions surfaced at `/api/dedup/pending` with full per-factor reasoning; resolve decision; query `/api/activities/:id/dedup` to see evaluation history.
 
-- [ ] T039 🔗 [US3] Implement dedup scoring function `score(candidate, existing)` in `packages/core/src/dedup/scorer.ts` — returns confidence (0–1) + breakdown ({type, time, duration, distance}); weights: type 30, start_time ±5m 30, duration ±10% 25, distance ±5% 15
-- [ ] T040 🔗 [US3] Implement merge logic in `packages/core/src/dedup/merger.ts` — per-field fidelity ranking; creates canonical record with multiple activity_sources; emits `activity.merged` event
-- [ ] T041 🔗 [US3] Implement dedup consumer Worker in `packages/functions/src/worker/dedup-consumer.ts` — subscribes to `activity.ingested` events on event-bus Queue; runs scorer against existing activities (same user, ±15 min window); auto-merges >85%, writes dedup_pending for 70–85%, creates new activity for <70%; emits `activity.created` or `activity.merged`
+- [X] T039 🔗 [US3] Implement dedup scoring function `score(candidate, existing)` in `packages/core/src/dedup/scorer.ts` — returns confidence (0–1) + breakdown ({type, time, duration, distance}); weights: type 30, start_time ±5m 30, duration ±10% 25, distance ±5% 15
+- [ ] T039b 🔗 [US3] [FR-18] Extend `packages/core/src/dedup/scorer.ts` to produce a `DedupReasoning` object alongside the confidence score — scorer MUST return `{ confidence: number; breakdown: ScoreBreakdown; reasoning: DedupReasoning }` where `DedupReasoning` matches the shape specified in FR-18: `{ confidence, outcome, factors: [{ dimension, label, earned, max, passed, detail }] }` (outcome set by caller). The `detail` string MUST include specific measurements (e.g., "Started 2 min 14 sec apart (within ±5 min window)" / "Duration differs by 12% (exceeds ±10% tolerance)"). When a field value is null/missing for a dimension, `passed` MUST be `false` and `detail` MUST be e.g., `"Duration not available — dimension scored 0"`. Export `DedupReasoning` and `DedupReasoningFactor` types from `packages/core/src/dedup/index.ts`. **tests:** verify `detail` strings for passed/failed cases per dimension; verify null/missing field detail; verify types are exported.
+- [X] T040 🔗 [US3] Implement merge logic in `packages/core/src/dedup/merger.ts` — per-field fidelity ranking; creates canonical record with multiple activity_sources; emits `activity.merged` event
+- [X] T041 🔗 [US3] Implement dedup consumer Worker in `packages/functions/src/worker/dedup-consumer.ts` — subscribes to `activity.ingested` events on event-bus Queue; runs scorer against existing activities (same user, ±15 min window); auto-merges >85%, writes dedup_pending for 70–85%, creates new activity for <70%; emits `activity.created` or `activity.merged`
+- [ ] T041b 🔗 [US3] [FR-19] Update dedup consumer Worker `packages/functions/src/worker/dedup-consumer.ts` to write `dedup_evaluations` rows after calling the scorer — MUST write a row for every evaluation where confidence ≥50% (`outcome`: `merged|pending|no_match`); `reasoningJson` stores serialised `DedupReasoning`; `comparedToId` is the best-match activity ID (nullable when no candidate found within window). The `outcome` in the reasoning object matches the dedup decision. T044b reads from `dedup_evaluations` via join `(activityId = dedup_pending.candidateActivityId AND comparedToId = dedup_pending.matchActivityId AND outcome = 'pending')`; T004b should add a composite index on `(activityId, comparedToId, outcome)` to support this join. Requires D1 schema task T004b to be complete first. **tests:** verify rows written at ≥50% threshold; verify <50% no-match does not write; verify `reasoningJson` is valid `DedupReasoning` JSON with outcome set correctly.
+- [ ] T004b 🧪 [FR-19] Add `dedup_evaluations` table to Drizzle schema in `packages/core/src/db/schema.ts` and generate a new D1 migration — columns: `id text PK`, `userId text NOT NULL`, `activityId text NOT NULL FK activities.id`, `comparedToId text NULLABLE`, `confidence integer NOT NULL` (0–100), `outcome text NOT NULL` (CHECK IN ('merged','pending','no_match')), `reasoningJson text NOT NULL`, `evaluatedAt integer NOT NULL` (ms epoch). Add composite index on `(activityId, comparedToId, outcome)` for T044b join. Export `dedupEvaluations` table from `packages/core/src/index.ts`. **tests:** insert + select round-trip; verify constraint rejects invalid outcome.
 - [POSTPONED] T042 🔗 [US3] Implement `AppleHealthAdapter` in `packages/core/src/adapters/apple-health-adapter.ts` — no fetch; transforms uploaded payloads to canonical form; no token management
 - [POSTPONED] T043 👤 [US3] Implement `POST /api/health/upload` in `packages/functions/src/api/routes/health.ts` — Zod-validates batch payload; stores raw in R2; emits `health_upload.received` events; returns accepted count + duplicates skipped
-- [ ] T044 [P] 👤 [US3] Implement `GET /api/dedup/pending` in `packages/functions/src/api/routes/dedup.ts` — returns pending dedup decisions for authenticated user with candidate + match activity details
-- [ ] T045 [P] 👤 [US3] Implement `POST /api/dedup/:id/resolve` in `packages/functions/src/api/routes/dedup.ts` — accepts `{decision: 'merge'|'separate'}`; updates dedup_pending; if merge, executes merge logic; emits appropriate events
+- [X] T044 [P] 👤 [US3] Implement `GET /api/dedup/pending` in `packages/functions/src/api/routes/dedup.ts` — returns pending dedup decisions for authenticated user with candidate + match activity details
+- [ ] T044b [P] 👤 [US3] [FR-18] Update `GET /api/dedup/pending` in `packages/functions/src/api/routes/dedup.ts` to JOIN with `dedup_evaluations` and include a `reasoning` field per item — response shape per FR-18: `reasoning: { confidence, outcome: 'pending', factors: [{ dimension, label, earned, max, passed, detail }] }`. If no matching `dedup_evaluations` row exists (legacy row predating T041b), include `reasoning: null`. **tests:** verify `reasoning` present in response; verify factor fields match scorer output; verify `reasoning: null` when no evaluation row.
+- [X] T045 [P] 👤 [US3] Implement `POST /api/dedup/:id/resolve` in `packages/functions/src/api/routes/dedup.ts` — accepts `{decision: 'merge'|'separate'}`; updates dedup_pending; if merge, executes merge logic; emits appropriate events
+- [ ] T046b 👤 [US3] [FR-20] Implement `GET /api/activities/:id/dedup` in `packages/functions/src/api/routes/activities.ts` (or a dedicated route file) — authenticated; returns `dedup_evaluations` rows for the given activity as `{ evaluations: [...], summary?: string }`. Each evaluation includes `comparedToId`, `confidence`, `outcome`, `evaluatedAt`, and the full `reasoning` object (parsed from `reasoningJson`). If no evaluations exist, return `{ evaluations: [], summary: "No activities were found within the ±15-minute window when this activity was ingested" }`. Return 404 if activity does not exist or does not belong to requesting user. Mount route in `packages/functions/src/api/index.ts`. **tests:** 200 with evaluations; 200 empty with summary; 404 for unknown activity; 404 for other user's activity.
 - [POSTPONED] T046 ✅ [US3] Verify: upload Apple Health batch; dedup runs against existing Zwift/Strava activities; >85% auto-merged; 70–85% surfaced as pending; resolve pending works; `GET /api/activities` includes merged data
 
 ---
@@ -217,10 +224,14 @@ Phase 4: US4 — Sync Orchestrator (depends on Phase 3)
   T038 (verify all)
 
 Phase 5: US3 — Dedup + Health Upload (depends on Phase 4)
-  T039 → T040 → T041
-  T042+T043 (parallel, after T041)
-  T044+T045 (parallel, independent)
-  T046 (verify all)
+  T004b (schema migration — prerequisite for T041b)
+  T039 → T039b (reasoning extension)
+  T040 → T041 → T041b (depends on T039b + T004b)
+  T042+T043 (parallel, after T041, POSTPONED)
+  T044 → T044b (depends on T041b; parallel with T045)
+  T045 (parallel with T044b)
+  T046b (depends on T004b + T041b)
+  T046 (verify all, POSTPONED)
 
 Phase 6: US2 — Push (depends on Phase 4, parallel with Phase 5)
   T047+T048 (parallel) → T049+T050 (parallel) → T051 → T052

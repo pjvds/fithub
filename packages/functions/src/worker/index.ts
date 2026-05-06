@@ -36,6 +36,7 @@ export interface SyncJobMessage {
   connectionId: string;
   jobId: string;
   attempt: number;
+  correlationId?: string;
 }
 
 type WorkerEnv = {
@@ -62,7 +63,7 @@ export default {
 
     for (const msg of batch.messages) {
       const job = msg.body;
-      const correlationId = job.jobId;
+      const correlationId = job.correlationId ?? job.jobId;
       const log = createLogger({ service: "sync-worker", env: stage, correlationId });
 
       log.info(LogEvent.syncJobStarted, { userId: job.userId, platform: job.platform, attempt: job.attempt });
