@@ -267,8 +267,8 @@ so that I have a single, unified workout history regardless of which device I us
 - **NFR-3 (Latency):** Mobile-facing read endpoints P95 <500ms; mobile-facing write endpoints P95 <1s.
 - **NFR-4 (Throughput):** Support 10,000 concurrent users with 30-min poll cadence (≈5.5 polls/sec aggregate baseline).
 - **NFR-5 (Scalability):** Horizontal scale of stateless API gateway; sync orchestrator partitionable by user_id.
-- **NFR-6 (Observability):** Structured logs, metrics for poll success/fail rates, push delivery rates, dedup match rates; alerts on SLO violations.
-- **NFR-7 (Privacy):** No application logs contain PII (emails, names, tokens, raw activity payloads).
+- **NFR-6 (Observability):** All Workers MUST emit JSON-structured operational logs with required fields (`ts`, `level`, `event`, `service`, `env`, `correlationId`, `userId` when known). Functional event names MUST come from a documented vocabulary (e.g. `auth.token.rejected`, `oauth.refresh.failed`, `sync.job.completed`); `error`-level entries MUST carry a typed `code`. Correlation IDs MUST flow from the API request through queue messages and CloudEvents envelopes so a single user-visible operation can be traced end-to-end. Logs MUST be shipped to a log aggregator with 30-day hot retention and aggregate metrics for poll success/fail rates, push delivery rates, dedup match rates; alerts on SLO violations. (Constitution Principle 8.)
+- **NFR-7 (Privacy):** No application logs contain PII (emails, names, tokens, raw activity payloads). The structured logger enforces this via a deny-list applied at emit time.
 - **NFR-8 (Data Durability):** D1 data replicated by Cloudflare with automatic global read replicas; durability and availability governed by Cloudflare SLA. R2 blob storage provides 99.999999999% (11 9's) durability.
 - **NFR-9 (Resilience):** Serverless architecture (Cloudflare Workers) has no traditional restarts; in-flight sync work is persisted via Cloudflare Queues (durable) and Durable Objects (persistent state). See FR-12.
 

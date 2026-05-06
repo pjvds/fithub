@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "hono";
+import { ErrorCode, LogEvent, type Logger } from "@fithub/core";
 
 interface Jwk {
   kid?: string;
@@ -122,10 +123,14 @@ export interface AuthMiddlewareOptions {
   issuer?: string;
 }
 
-export function authMiddleware(opts: AuthMiddlewareOptions): MiddlewareHandler<{ Variables: AuthVariables }> {
+export function authMiddleware(
+  opts: AuthMiddlewareOptions,
+): MiddlewareHandler<{ Variables: AuthVariables & { logger?: Logger } }> {
   return async (c, next) => {
+    const log = c.get("logger");
     const header = c.req.header("authorization") ?? c.req.header("Authorization");
     if (!header || !header.toLowerCase().startsWith("bearer ")) {
+      log?.warn(LogEvent.authTokenRejected, { code: ErrorCode.AUTH_MISSING_TOKEN });
       return c.json({ error: "unauthenticated" }, 401);
     }
     const token = header.slice(7).trim();
@@ -136,10 +141,28 @@ export function authMiddleware(opts: AuthMiddlewareOptions): MiddlewareHandler<{
       const { userId, payload } = await verifyJwt(token, opts.jwksUrl, verifyOpts);
       c.set("userId", userId);
       c.set("jwtPayload", payload);
+      log?.info(LogEvent.authTokenAccepted, { userId });
     } catch (err) {
-      console.warn("auth: token rejected", (err as Error).message);
+      const reason = (err as Error).message;
+      log?.warn(LogEvent.authTokenRejected, {
+        code: reasonToCode(reason),
+        reason,
+      });
       return c.json({ error: "unauthenticated" }, 401);
     }
     await next();
   };
+}
+
+function reasonToCode(reason: string): ErrorCode {
+  switch (reason) {
+    case "expired":
+      return ErrorCode.AUTH_EXPIRED_TOKEN;
+    case "bad_audience":
+      return ErrorCode.AUTH_BAD_AUDIENCE;
+    case "bad_issuer":
+      return ErrorCode.AUTH_BAD_ISSUER;
+    default:
+      return ErrorCode.AUTH_INVALID_TOKEN;
+  }
 }

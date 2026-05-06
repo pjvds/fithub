@@ -722,6 +722,19 @@ class UserSyncCoordinator {
 
 **Deviations:** None.
 
+### 8. Functional & Structured Logging
+**Compliance Strategy:**
+- [x] Logger Module: `packages/core/src/logging/logger.ts` — JSON output, required fields enforced, redaction at emit time
+- [x] Functional Events: catalogued in `packages/core/src/logging/events.ts` (e.g. `auth.token.rejected`, `outbox.relay.publish.failed`, `sync.job.completed`)
+- [x] Required Fields: `ts`, `level`, `event`, `service`, `env`, `correlationId`, `userId` (when known) on every entry
+- [x] Sensitive-Data Redaction: deny-list (`token`, `accessToken`, `refreshToken`, `authorization`, `password`, `secret`, `apiKey`, `raw*`, `payload`, `email`, `name`, `ip`) applied at emit time; verified by Phase 7 PII-scan in T058
+- [x] Error Codes: enum in `error-codes.ts` (`AUTH_INVALID_TOKEN`, `OAUTH_REFRESH_FAILED`, `RATE_LIMIT`, `EXTERNAL_5XX`, …); `error`-level entries MUST carry a `code`
+- [x] Correlation Propagation: Hono `correlationMiddleware` mints/honors `x-correlation-id` → response header → request-scoped `Logger` → queue message envelope → CloudEvents `id` (or dedicated `correlationId` field) → consumer logs
+- [x] Audit vs. Operational: connection lifecycle, token rotation, consent changes, exports/deletes also write to `audit_log` (D1) via `audit/logger.ts` — separate concern from operational logs
+- [x] Aggregator: Logpush (T053) → log aggregator (destination TBD, 30-day hot retention, 1-year cold)
+
+**Deviations:** None.
+
 ---
 
 ## Implementation Breakdown

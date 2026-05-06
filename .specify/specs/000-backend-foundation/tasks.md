@@ -22,7 +22,7 @@
 
 ## Task Summary
 
-**Total Tasks:** 68
+**Total Tasks:** 74
 
 **Number of Parallel Work Streams:** Up to 3 (after Phase 2 completes)
 
@@ -77,11 +77,16 @@
 > Goal: Auth middleware validates JWTs; token encryption module operational; PlatformAdapter interface defined; audit log module ready. All user story phases depend on this.
 
 - [X] T015 🔐 Implement JWT auth middleware in `packages/functions/src/api/middleware/auth.ts` — validates Bearer token against OpenAuth.js JWKS endpoint; extracts `userId` into Hono context; rejects 401 on invalid/expired token
+- [X] T015a 📢 Implement structured logger in `packages/core/src/logging/logger.ts` — JSON output, required fields (`ts`, `level`, `event`, `service`, `env`, `correlationId`, `userId`), child loggers, redaction deny-list, typed `code` on error level (Constitution Principle 8)
+- [X] T015b [P] 📢 Define operational event vocabulary in `packages/core/src/logging/events.ts` — namespaced names like `auth.token.rejected`, `outbox.relay.publish.failed`, `oauth.refresh.failed`, `sync.job.completed`
+- [X] T015c [P] 📢 Define error-code taxonomy in `packages/core/src/logging/error-codes.ts` — typed enum used on every `error`-level entry; `LoggedError` class for thrown errors carrying a code
+- [X] T015d 📢 Implement correlation-ID + logger middleware in `packages/functions/src/api/middleware/correlation.ts` and `.../logger.ts` — reads `x-correlation-id` / `x-request-id`, mints UUID otherwise, propagates into Hono context, response header, and request-scoped `Logger`
+- [X] T015e 📢 Refactor `auth.ts`, `api/index.ts`, `outbox-relay/index.ts` to use the structured logger (no `console.*` outside the logger module)
 - [X] T016 🔐 Implement token encryption module in `packages/core/src/crypto/token-vault.ts` — `encrypt(plaintext, masterKey)` → `v1:iv:ciphertext:tag` (base64); `decrypt(ciphertext, masterKey)` → plaintext; AES-256-GCM; uses Web Crypto API
 - [X] T017 [P] 🔗 Define `PlatformAdapter` interface in `packages/core/src/adapters/types.ts` — `fetchActivities(token, since?)`, `refreshToken(refreshToken)`, `validateToken(token)`, `revokeToken(token)`; `CanonicalActivity` type
 - [X] T018 [P] 📢 Implement audit log module in `packages/core/src/audit/logger.ts` — `logAuditEvent(db, {userId, eventType, platform, metadata})` inserts into audit_log table; metadata is JSON (no PII, no tokens, no payloads)
 - [X] T019 [P] 🔗 Create mock `PlatformAdapter` for tests in `packages/core/src/adapters/mock-adapter.ts` — returns fixture activities; used in integration tests
-- [X] T020 ✅ Verify: auth middleware rejects unauthenticated requests with 401; token encrypt/decrypt round-trips correctly; audit entries written to D1
+- [X] T020 ✅ Verify: auth middleware rejects unauthenticated requests with 401; token encrypt/decrypt round-trips correctly; audit entries written to D1; all Workers emit JSON logs only (no free-text `console.*`); sample 100 log lines confirms zero token/PII leakage
 
 
 ---
@@ -250,74 +255,7 @@ Phase 7: Polish (depends on Phases 5+6)
 
 ## Quick Reference: Task Checklist
 
-- [ ] T001: Init SST app
-- [ ] T002: Monorepo structure
-- [ ] T003: Dependencies
-- [ ] T004: Drizzle schema
-- [ ] T005: SST bindings
-- [ ] T006: Initial migration
-- [ ] T007: API Worker scaffold
-- [ ] T008: CloudEvents types
-- [ ] T009: Event Zod schemas
-- [ ] T010: Outbox publish helper
-- [ ] T011: Outbox Relay Worker
-- [ ] T012: Idempotency helper
-- [ ] T013: CI configuration
-- [ ] T014: Phase 1 verification
-- [ ] T015: JWT auth middleware
-- [ ] T016: Token encryption
-- [ ] T017: PlatformAdapter interface
-- [ ] T018: Audit log module
-- [ ] T019: Mock adapter
-- [ ] T020: Phase 2 verification
-- [ ] T021: OAuth initiate endpoint
-- [ ] T022: OAuth callback endpoint
-- [ ] T023: List connections endpoint
-- [ ] T024: Disconnect endpoint
-- [ ] T025: ZwiftAdapter
-- [ ] T026: StravaAdapter
-- [ ] T027: Token refresh logic
-- [ ] T028: US1 verification
-- [ ] T029: UserSyncCoordinator DO
-- [ ] T030: Scheduler Worker
-- [ ] T031: Worker sync consumer
-- [ ] T032: Retry logic
-- [ ] T033: Strava webhook endpoint
-- [ ] T034: Strava subscription mgmt
-- [ ] T035: Strava reconcile poll
-- [ ] T036: Activities list endpoint
-- [ ] T037: Manual sync trigger
-- [ ] T038: US4 verification
-- [ ] T039: Dedup scorer
-- [ ] T040: Merge logic
-- [ ] T041: Dedup consumer Worker
-- [ ] T042: AppleHealthAdapter
-- [ ] T043: Health upload endpoint
-- [ ] T044: Dedup pending endpoint
-- [ ] T045: Dedup resolve endpoint
-- [ ] T046: US3 verification
-- [ ] T047: APNs sender
-- [ ] T048: FCM sender
-- [ ] T049: Device register endpoint
-- [ ] T050: Device unregister endpoint
-- [ ] T051: Push notifier consumer
-- [ ] T052: US2 verification
-- [ ] T053: Logpush config
-- [ ] T054: Custom metrics
-- [ ] T055: Alerts
-- [ ] T056: processed_events cleanup cron
-- [ ] T057: Load test
-- [ ] T058: Security review
-- [ ] T059: Workers Secrets key rotation docs
-- [ ] T060: Runbooks
-- [ ] T061: KV feed cache
-- [ ] T062: GDPR data export endpoint
-- [ ] T063: GDPR data deletion endpoint
-- [ ] T064: Status page endpoint
-- [ ] T065: E2E sync workflow test
-- [ ] T066: E2E dedup cross-platform test
-- [ ] T067: E2E disconnect + GDPR test
-- [ ] T068: Final review + sign-off
+> **Note:** the canonical task list with completion status is the per-phase list above. This summary is intentionally omitted to avoid drift; refer to Phase 1–7 sections for `[X]` / `[ ]` / `[POSTPONED]` markers.
 
 ---
 

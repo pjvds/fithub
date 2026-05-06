@@ -145,6 +145,14 @@ so that I retain control over my data without having to email support.
 - [x] Release notes content drafted (one-line entry per release in a public changelog page)
 - **Notes:** A small banner on the marketing-style landing page disclaims that mobile apps are coming later, so users are not surprised.
 
+### ✅ Functional & Structured Logging
+- [x] Web app uses the shared structured logger (`@fithub/core/logging`) for any server-side rendered routes / serverless functions it owns; no free-text `console.*` logging in production code
+- [x] Frontend error reporter forwards browser-side errors to a backend ingest endpoint that re-emits them through the structured logger with `service: "web"` and a generated `correlationId`
+- [x] Outgoing API calls forward the active `x-correlation-id` header (or mint one) so backend logs can be correlated with a user-visible page action
+- [x] Sensitive data deny-list honored: tokens, cookies, raw payloads, and PII are never included in client-side error reports
+- [x] Error reports include a typed error code (from the shared `ErrorCode` enum) where it can be inferred (e.g., 401 → `AUTH_INVALID_TOKEN`)
+- **Notes:** Constitution Principle 8 applies symmetrically to the web client. Astro server endpoints inherit the same logger contract as Workers.
+
 ---
 
 ## Technical Specification
