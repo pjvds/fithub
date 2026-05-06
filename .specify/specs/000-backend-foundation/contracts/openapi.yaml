@@ -1,0 +1,702 @@
+openapi: "3.1.0"
+info:
+  title: FitHub Backend API
+  version: "0.1.0"
+  description: |
+    REST API for the FitHub fitness data sync platform.
+    Served by the `api` Worker (Hono) on Cloudflare Workers.
+    All endpoints except webhooks require a valid JWT Bearer token (issued by OpenAuth.js / SST Auth).
+
+servers:
+  - url: https://api.fithub.app
+    description: Production
+  - url: http://localhost:8787
+    description: Local development (sst dev)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by OpenAuth.js via SST Auth
+
+  schemas:
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [zwift, strava, apple_health]
+        status:
+          type: string
+          enum: [active, requires_reauth, disconnected]
+        connected_at:
+          type: integer
+          description: Epoch seconds
+        last_synced_at:
+          type: integer
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+      required: [id, platform, status, connected_at]
+
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [running, cycling, swimming, hiking, walking, other]
+        started_at:
+          type: integer
+          description: Epoch seconds
+        ended_at:
+          type: integer
+        duration_s:
+          type: integer
+        distance_m:
+          type: number
+          nullable: true
+        calories_kcal:
+          type: number
+          nullable: true
+        avg_heart_rate:
+          type: integer
+          nullable: true
+        primary_source:
+          type: string
+          enum: [zwift, strava, apple_health]
+        created_at:
+          type: integer
+      required: [id, type, started_at, ended_at, duration_s, primary_source, created_at]
+
+    DedupPending:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        candidate_activity:
+          $ref: "#/components/schemas/Activity"
+        match_activity:
+          $ref: "#/components/schemas/Activity"
+        confidence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        scoring_breakdown:
+          type: object
+          properties:
+            type:
+              type: number
+            time:
+              type: number
+            duration:
+              type: number
+            distance:
+              type: number
+        created_at:
+          type: integer
+      required: [id, candidate_activity, match_activity, confidence_score, scoring_breakdown, created_at]
+
+    PushDevice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [ios, android]
+        active:
+          type: boolean
+        registered_at:
+          type: integer
+      required: [id, platform, active, registered_at]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/connections/{platform}/oauth/initiate:
+    post:
+      summary: Start OAuth flow
+      description: Returns redirect URL with PKCE challenge for the given platform.
+      operationId: initiateOAuth
+      tags: [connections]
+      parameters:
+        - name: platform
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [zwift, strava]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                redirect_uri:
+                  type: string
+                  format: uri
+                  description: Mobile deep-link URI for callback
+              required: [redirect_uri]
+      responses:
+        "200":
+          description: OAuth redirect URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  redirect_url:
+                    type: string
+                    format: uri
+                  state:
+                    type: string
+                required: [redirect_url, state]
+        "400":
+          description: Invalid platform or request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/connections/{platform}/oauth/callback:
+    post:
+      summary: Complete OAuth flow
+      description: Exchanges authorization code for tokens; stores encrypted in D1.
+      operationId: completeOAuth
+      tags: [connections]
+      parameters:
+        - name: platform
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [zwift, strava]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                state:
+                  type: string
+                code_verifier:
+                  type: string
+                  description: PKCE code verifier
+              required: [code, state]
+      responses:
+        "201":
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "409":
+          description: Connection already exists for this platform
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/connections:
+    get:
+      summary: List connections
+      description: Returns all platform connections for the authenticated user.
+      operationId: listConnections
+      tags: [connections]
+      responses:
+        "200":
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connections:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Connection"
+
+  /api/connections/{platform}/disconnect:
+    post:
+      summary: Disconnect platform
+      description: Revokes tokens and marks connection as disconnected.
+      operationId: disconnectPlatform
+      tags: [connections]
+      parameters:
+        - name: platform
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [zwift, strava, apple_health]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                delete_data:
+                  type: boolean
+                  default: false
+                  description: If true, also deletes synced activities from this platform
+      responses:
+        "200":
+          description: Connection disconnected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [disconnected]
+        "404":
+          description: No connection found for platform
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/activities:
+    get:
+      summary: List activities
+      description: Paginated incremental fetch of canonical activities.
+      operationId: listActivities
+      tags: [activities]
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+          description: Cursor (ISO timestamp or opaque token) for incremental fetch
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Paginated activity list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Activity"
+                  next_cursor:
+                    type: string
+                    nullable: true
+                    description: Pass as `since` for next page; null = no more
+
+  /api/sync/trigger:
+    post:
+      summary: Manual sync trigger
+      description: Enqueues an immediate sync job for the specified platform.
+      operationId: triggerSync
+      tags: [sync]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platform:
+                  type: string
+                  enum: [zwift, strava]
+              required: [platform]
+      responses:
+        "202":
+          description: Sync job enqueued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+        "409":
+          description: Sync already in progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/health/upload:
+    post:
+      summary: Apple Health batch upload
+      description: |
+        Mobile-driven batch ingest of Apple Health data.
+        Accepts an array of health samples; emits `health_upload.received` domain event.
+      operationId: uploadHealth
+      tags: [health]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                samples:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      source_id:
+                        type: string
+                      type:
+                        type: string
+                      started_at:
+                        type: integer
+                      ended_at:
+                        type: integer
+                      duration_s:
+                        type: integer
+                      distance_m:
+                        type: number
+                        nullable: true
+                      calories_kcal:
+                        type: number
+                        nullable: true
+                      avg_heart_rate:
+                        type: integer
+                        nullable: true
+                    required: [source_id, type, started_at, ended_at, duration_s]
+              required: [samples]
+      responses:
+        "202":
+          description: Upload accepted for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: integer
+                    description: Number of samples accepted
+                  duplicates_skipped:
+                    type: integer
+
+  /api/dedup/pending:
+    get:
+      summary: List pending dedup decisions
+      description: Returns activities with ambiguous dedup scores (70–85% confidence).
+      operationId: listPendingDedup
+      tags: [dedup]
+      responses:
+        "200":
+          description: Pending dedup decisions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DedupPending"
+
+  /api/dedup/{id}/resolve:
+    post:
+      summary: Resolve dedup decision
+      description: User decides whether candidate is a duplicate (merge) or distinct (separate).
+      operationId: resolveDedup
+      tags: [dedup]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum: [merge, separate]
+              required: [decision]
+      responses:
+        "200":
+          description: Decision applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    enum: [merged, separated]
+                  activity_id:
+                    type: string
+                    format: uuid
+        "404":
+          description: Pending dedup not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/devices/register:
+    post:
+      summary: Register push device
+      description: Register or update a push notification token for the current device.
+      operationId: registerDevice
+      tags: [devices]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platform:
+                  type: string
+                  enum: [ios, android]
+                push_token:
+                  type: string
+              required: [platform, push_token]
+      responses:
+        "200":
+          description: Device registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushDevice"
+
+  /api/devices/{id}:
+    delete:
+      summary: Unregister push device
+      operationId: unregisterDevice
+      tags: [devices]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Device unregistered
+
+  # Webhook endpoints (no auth — signature-verified)
+  /webhooks/strava:
+    get:
+      summary: Strava webhook verification
+      description: |
+        Responds to Strava's subscription verification challenge.
+        No JWT auth required — validated by challenge token match.
+      operationId: verifyStravaWebhook
+      tags: [webhooks]
+      security: []
+      parameters:
+        - name: hub.mode
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.challenge
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.verify_token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Challenge echoed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hub.challenge:
+                    type: string
+    post:
+      summary: Strava event delivery
+      description: |
+        Receives Strava webhook events (activity create/update/delete).
+        Signature-verified via X-Strava-Signature header.
+        Emits `activity.ingested` domain event.
+      operationId: receiveStravaWebhook
+      tags: [webhooks]
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                object_type:
+                  type: string
+                  enum: [activity, athlete]
+                aspect_type:
+                  type: string
+                  enum: [create, update, delete]
+                object_id:
+                  type: integer
+                owner_id:
+                  type: integer
+                subscription_id:
+                  type: integer
+                event_time:
+                  type: integer
+              required: [object_type, aspect_type, object_id, owner_id, subscription_id, event_time]
+      responses:
+        "200":
+          description: Event acknowledged
+
+  /health:
+    get:
+      summary: Health check
+      description: Returns 200 if the API Worker is running.
+      operationId: healthCheck
+      tags: [system]
+      security: []
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  version:
+                    type: string
+
+  /api/user/export:
+    get:
+      summary: Export user data (GDPR Art. 20)
+      description: |
+        For small datasets (<30s): returns ZIP inline.
+        For large datasets: returns 202 with polling URL; export stored in R2.
+        Emits `user.export_ready` event on async completion.
+      operationId: exportUserData
+      tags: [user, gdpr]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Export ZIP returned inline
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "202":
+          description: Async export started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [processing]
+                  poll_url:
+                    type: string
+                    format: uri
+        "401":
+          description: Unauthorized
+
+  /api/user:
+    delete:
+      summary: Delete user account (GDPR Art. 17)
+      description: |
+        Soft-deletes user record, revokes all platform tokens, purges activities
+        from D1 and R2, removes push device registrations.
+        Emits `user.deleted` event. 30-day grace period before hard purge.
+      operationId: deleteUser
+      tags: [user, gdpr]
+      security:
+        - bearerAuth: []
+      responses:
+        "202":
+          description: Deletion initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [scheduled]
+                  hard_delete_at:
+                    type: string
+                    format: date-time
+        "401":
+          description: Unauthorized
+
+  /api/status:
+    get:
+      summary: Platform sync health status
+      description: |
+        Public endpoint showing platform availability and sync health.
+        No authentication required. Constitution §7 compliance.
+      operationId: getStatus
+      tags: [system]
+      security: []
+      responses:
+        "200":
+          description: Status page data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, outage]
+                  platforms:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          enum: [healthy, degraded, down]
+                        success_rate_24h:
+                          type: number
+                        last_poll_at:
+                          type: string
+                          format: date-time
+                  queue_depth:
+                    type: integer
+                  outbox_relay_lag_seconds:
+                    type: number
