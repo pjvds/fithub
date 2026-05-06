@@ -10,8 +10,8 @@
 |---|---|---|
 | Node.js | ≥20 LTS | Runtime for SST + Workers |
 | npm/pnpm | Latest | Package manager |
-| SST CLI | v3 (Ion) | Infrastructure-as-code |
-| Wrangler | ≥3.x | Cloudflare Workers CLI (installed via SST) |
+| SST CLI | v4 (Ion) | Infrastructure-as-code; provides local emulation (`sst dev`) and deploy (`sst deploy`) |
+| Wrangler | (optional) | Only needed for ad-hoc Cloudflare CLI ops (e.g., `wrangler tail` for live logs, `wrangler d1 execute` for one-off queries). SST v4 does **not** require Wrangler. |
 | Cloudflare account | Workers Paid plan | D1, Queues, R2, Durable Objects |
 
 ## 1. Clone & Install
@@ -24,13 +24,16 @@ npm install
 
 ## 2. Configure Cloudflare
 
-```bash
-# Authenticate Wrangler with your Cloudflare account
-npx wrangler login
+SST authenticates to Cloudflare via API token. Set the token in your shell or `.env`:
 
-# Verify access
-npx wrangler whoami
+```bash
+export CLOUDFLARE_API_TOKEN=<your-token>
+export CLOUDFLARE_ACCOUNT_ID=<your-account-id>
 ```
+
+Create the token at https://dash.cloudflare.com/profile/api-tokens with permissions for Workers, D1, KV, Queues, R2, and Durable Objects.
+
+> **Optional:** If you also want the Wrangler CLI for ad-hoc operations (e.g., `wrangler tail`), install it globally and run `npx wrangler login` once. It is not required for `sst dev` or `sst deploy`.
 
 Ensure your account has the **Workers Paid** plan (required for D1, Durable Objects, Queues).
 

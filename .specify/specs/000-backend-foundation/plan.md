@@ -12,7 +12,8 @@
 
 **Tech Stack:** TypeScript ^5.6 + SST v4 (Ion) + Cloudflare (Workers, D1, Durable Objects, Queues, KV, R2, Cron Triggers, Secrets)
 - **Frameworks/runtimes:** Hono ^4.12, Drizzle ORM ^0.45 + Drizzle Kit ^0.30, Zod ^4, OpenAuth.js ^0.4 (`@openauthjs/openauth`)
-- **Testing/tooling:** Vitest ^4 (built-in `bench` for perf regressions), ESLint ^9, Wrangler latest (provides `wrangler dev` for local emulation; `wrangler types` for Worker type generation)
+- **Testing/tooling:** Vitest ^4 (built-in `bench` for perf regressions), ESLint ^9
+- **Local emulation & types:** Provided natively by SST v4 — `sst dev` runs the integrated Miniflare runtime; SST generates Worker binding types from `sst.config.ts` (no `wrangler dev`/`wrangler types`/`@cloudflare/workers-types` required). Wrangler CLI is **optional** and only used for ad-hoc Cloudflare operations outside the SST workflow (e.g., `wrangler tail` for live log streaming, `wrangler d1 execute` for one-off queries).
 - **Versions verified:** May 2026 — pin minimums in `package.json`; track latest with Renovate/Dependabot
 
 ---
@@ -639,8 +640,11 @@ class UserSyncCoordinator {
 - `drizzle-orm` ^0.45 + `drizzle-kit` ^0.30 — ORM + migrations (D1 driver: `drizzle-orm/d1`)
 - `zod` ^4 — Runtime validation (note: Zod 4 API differences vs 3, e.g. `z.email()` instead of `z.string().email()`)
 - `@openauthjs/openauth` ^0.4 — OpenAuth.js issuer for `auth` Worker
-- `wrangler` latest — local dev (`wrangler dev`) and type generation (`wrangler types`); preferred over standalone `@cloudflare/workers-types`, which remains pinned at `^4.20260418` only as a fallback for shared library packages
 - `typescript` ^5.6, `vitest` ^4, `eslint` ^9 — dev tooling
+
+**Not required (managed by SST v4):**
+- `wrangler` — SST v4 talks to the Cloudflare API directly and embeds the Miniflare runtime; `sst dev` replaces `wrangler dev`, `sst deploy` replaces `wrangler deploy`. Install Wrangler **only** as an optional ad-hoc CLI (e.g., `wrangler tail`, `wrangler d1 execute`) on developer machines that need it; do not pin in `package.json`.
+- `@cloudflare/workers-types` — SST generates `Resource.*` and Worker binding types from `sst.config.ts` (`sst-env.d.ts`); add only as a fallback if publishing a shared library package outside the SST app.
 
 ---
 
@@ -696,7 +700,7 @@ class UserSyncCoordinator {
 ### 6. Code Quality & Testing
 **Compliance Strategy:**
 - [x] Test Coverage: Vitest for units; target ≥80%
-- [x] Integration Tests: `wrangler dev` for local emulation (Miniflare runtime integrated; standalone Miniflare deprecated as of 2026); mock platform APIs with MSW
+- [x] Integration Tests: `sst dev` for local emulation (SST v4 embeds the Miniflare runtime; standalone Miniflare deprecated as of 2026); mock platform APIs with MSW
 - [x] E2E Tests: Staging deploys with mock platform sandbox; mobile fixture client
 - [x] Code Review: GitHub PR with required review; lint + tests in CI gating
 - [x] Static Analysis: ESLint + TypeScript strict mode; `tsc --noEmit` in CI
@@ -730,7 +734,7 @@ class UserSyncCoordinator {
 - `api` Worker scaffold with Hono + auth middleware stub + `/health` endpoint
 - CI: lint + type-check + unit tests on every PR
 - **Deliverables:** Deployable SST app to `dev` stage; `/health` returns 200; D1 schema applied; outbox relay running; event-bus Queue provisioned; R2 bucket bound
-- **Dependencies:** Cloudflare account, Apple Developer account (for APNs later), SST + wrangler installed
+- **Dependencies:** Cloudflare account, Apple Developer account (for APNs later), SST CLI installed (`sst@^4.12`); Wrangler optional for ad-hoc Cloudflare operations
 
 **Phase 2: OAuth Token Vault & Adapter Interface**
 - Token encryption module (`encrypt`, `decrypt`, ciphertext versioning)
@@ -876,7 +880,7 @@ Phase 1 → Phase 2 → Phase 3 → Phase 5 → Phase 8
 - Adapter mocks
 - **Target:** ≥80% line coverage per module
 
-**Integration Testing (`wrangler dev` + MSW):**
+**Integration Testing (`sst dev` + MSW):**
 - OAuth flow end-to-end with mocked Zwift/Strava
 - Webhook handler with mocked Strava event
 - Sync orchestration: queue → worker → DO → D1
