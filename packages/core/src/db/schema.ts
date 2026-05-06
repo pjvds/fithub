@@ -134,3 +134,21 @@ export const pushDevices = sqliteTable(
     idxUser: index("idx_push_devices_user").on(t.userId),
   }),
 );
+
+export const dedupEvaluations = sqliteTable(
+  "dedup_evaluations",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    activityId: text("activity_id").notNull().references(() => activities.id, { onDelete: "cascade" }),
+    comparedToId: text("compared_to_id"),
+    confidence: integer("confidence").notNull(),
+    outcome: text("outcome", { enum: ["merged", "pending", "no_match"] }).notNull(),
+    reasoningJson: text("reasoning_json").notNull(),
+    evaluatedAt: integer("evaluated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => ({
+    idxActivityLookup: index("idx_dedup_eval_activity").on(t.activityId, t.comparedToId, t.outcome),
+    idxUserTime: index("idx_dedup_eval_user_time").on(t.userId, t.evaluatedAt),
+  }),
+);
