@@ -25,7 +25,7 @@
 ## Problem & Approach
 
 **Feature Problem:**
-FitHub's hybrid architecture (per `.specify/memory/architecture-overview.md`) requires a backend that holds OAuth tokens for cloud platforms, polls/receives webhooks, deduplicates activities across sources, and pushes notifications to mobile clients. Without this, none of the three platform integrations (Zwift, Strava, Apple Health) can be implemented.
+FitHub's hybrid architecture (per `.specify/memory/architecture-overview.md`) requires a backend that holds OAuth tokens for cloud platforms, polls/receives webhooks, and deduplicates activities across sources. The v1 web client (`005-web-frontend`) is the primary consumer; push notifications and Apple Health ingestion are deferred to mobile v2+. Without this, none of the platform integrations (Zwift, Strava) can be implemented.
 
 **Implementation Approach:**
 Build a serverless TypeScript backend on Cloudflare, deployed via SST. Map each spec subsystem to native Cloudflare primitives that minimize operational burden:
@@ -41,7 +41,7 @@ Build a serverless TypeScript backend on Cloudflare, deployed via SST. Map each 
 - **Event schema** → CloudEvents v1.0 JSON + Zod validation
 
 The architecture is structured around four logical service boundaries within a single SST app:
-1. **`api`** Worker — Mobile-facing HTTP API + Strava webhook receiver
+1. **`api`** Worker — Client-facing HTTP API (web in v1; future mobile) + Strava webhook receiver
 2. **`scheduler`** Worker — Cron-triggered Zwift polling dispatcher
 3. **`worker`** Worker — Queue consumer for sync jobs + retry processing
 4. **`auth`** Worker — OpenAuth.js (SST Auth) issuer hosting Apple/Google/email-magic-link sign-in flows; issues JWTs validated by `api`
@@ -50,7 +50,7 @@ Each user has a `UserSyncCoordinator` Durable Object holding sync state (last cu
 
 All domain state changes propagate through the system as events via the **D1 transactional outbox pattern → Cloudflare Queues** (AD-5). Events conform to CloudEvents v1.0 JSON, carry ≤4 KB payloads, and reference R2 blobs by storage path only. An Outbox Relay Worker drains the outbox to Queues on a ~5s cron cadence. Consumers dedup using the CloudEvents `id` as idempotency key with a 24h bounded-window cleanup (safe because Queues max retry window is 12h < 24h cleanup window).
 
-User authentication for FitHub itself is provided by **self-hosted OpenAuth.js** (the `auth` Worker) using Workers KV for issuer state and D1 for the canonical `users` table. Mobile uses `flutter_appauth` (PKCE) to obtain JWTs; `api` validates JWTs on every request.
+User authentication for FitHub itself is provided by **self-hosted OpenAuth.js** (the `auth` Worker) using Workers KV for issuer state and D1 for the canonical `users` table. The v1 web client uses standard browser PKCE flows to obtain JWTs; `api` validates JWTs on every request. Mobile clients (v2+) will use `flutter_appauth` (PKCE) via `ASWebAuthenticationSession`/`CustomTabs`.
 
 Eight phases sequenced (see Implementation Breakdown below for the canonical phase numbering): Phase 1 establishes SST project + D1 schema + outbox infrastructure + JWT validation middleware; Phase 2 builds OAuth Token Vault + adapter interface; Phase 3 adds Zwift adapter + cron-driven polling; Phase 4 adds Strava adapter + webhooks; Phase 5 builds the dedup engine; Phase 6 adds push notifications; Phase 7 adds Apple Health ingestion; Phase 8 hardens (observability, security, load testing). FitHub user authentication itself (the OpenAuth `auth` Worker for Apple/Google/email-magic-link sign-in) is specified in feature `001-user-authentication` — it is a hard dependency of this foundation but specified and tracked separately.
 
@@ -217,7 +217,7 @@ Eight phases sequenced (see Implementation Breakdown below for the canonical pha
 - Separate SST apps per Worker: more boilerplate, harder to share code
 - Monolithic single Worker: violates separation of concerns; cron + queue + API in one is messy
 
-**Impact:** Workspace-style monorepo within `backend/`; build config must produce four Worker bundles.
+**Impact:** Workspace-style monorepo in `packages/`; build config must produce four Worker bundles.
 
 ---
 
@@ -251,7 +251,7 @@ Eight phases sequenced (see Implementation Breakdown below for the canonical pha
 - Native Cloudflare Workers support (built-in KV adapter); same stack, single SST deploy
 - Self-hosted → zero per-user cost, full data sovereignty (Constitution §1 Data Privacy)
 - Open source, made by the SST team — no vendor lock-in
-- Standards-based OAuth 2.0 + PKCE; works with existing `flutter_appauth` mobile dependency
+- Standards-based OAuth 2.0 + PKCE; web clients use standard browser OAuth flows (PKCE via redirect); mobile clients (v2+) can use `flutter_appauth`
 - Sign in with Apple satisfies App Store Guideline 4.8 when offering other social logins on iOS
 - Magic-link removes the need for password storage in MVP (smaller attack surface; no credential-stuffing exposure)
 
@@ -266,9 +266,10 @@ Eight phases sequenced (see Implementation Breakdown below for the canonical pha
 - **Roll our own auth:** high security risk; reinventing OAuth flows, MFA, recovery
 - **Better Auth:** newer, framework-agnostic, but less mature than OpenAuth on Workers specifically
 
-**Impact:**
+- **Impact:**
 - Adds 4th Worker bundle and a Workers KV namespace (`AUTH_KV`)
-- Mobile flow: `flutter_appauth` opens `https://auth.fithub.app/authorize?...` in `ASWebAuthenticationSession` (iOS) / `CustomTabs` (Android); receives JWT via PKCE; stores in Keychain/Keystore
+- v1 web flow: Astro pages redirect to `https://auth.fithub.app/authorize?...` via standard browser PKCE; receive JWT via redirect; store in a secure HttpOnly cookie
+- *(v2+ mobile flow)* `flutter_appauth` opens `https://auth.fithub.app/authorize?...` in `ASWebAuthenticationSession` (iOS) / `CustomTabs` (Android); receives JWT via PKCE; stores in Keychain/Keystore
 - `api` Worker validates JWT (RS256) via OpenAuth's JWKS endpoint
 - Magic-link delivery requires email provider (Resend recommended; ~$20/mo at expected volume)
 - `001-user-authentication` feature spec details: provider configuration, account linking, JWT claim shape, email templates, deep-link handling

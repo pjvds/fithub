@@ -61,7 +61,7 @@ This is a prerequisite for `001-user-authentication` and all three platform-inte
 
 **What is the feature?**
 
-A backend service exposing a REST API to authenticated mobile clients, containing five core subsystems:
+A backend service exposing a REST API to authenticated clients (web in v1; mobile in a future release), containing five core subsystems:
 
 1. **API Gateway** — Authenticated REST endpoints for mobile clients.
 2. **OAuth Token Vault** — Encrypted storage and lifecycle management of platform tokens.
@@ -74,27 +74,29 @@ The backend is the source of truth for cloud-platform activity data and the dest
 **User Stories**
 
 ```
-As the FitHub mobile app,
+As the FitHub web app,
 I want to register a connection to a cloud platform on the user's behalf,
-so that the backend can fetch the user's data without storing tokens on-device.
+so that the backend can fetch the user's data without storing tokens client-side.
 ```
 
 ```
+[DEFERRED — mobile v2+]
 As the FitHub mobile app,
 I want to receive a push notification when new activities are available,
 so that I can fetch and display them with minimal latency and battery impact.
 ```
 
 ```
+[DEFERRED — mobile v2+]
 As the FitHub mobile app,
 I want to upload Apple Health activities to the backend,
 so that they are deduplicated against cloud-platform data and available on the user's other devices.
 ```
 
 ```
-As a user with multiple devices (iPhone, iPad),
-I want my activities to appear consistently on all my devices,
-so that I have a single, unified workout history regardless of which device I use.
+As a user with multiple devices,
+I want my activities to appear consistently across devices and the web,
+so that I have a single, unified workout history regardless of how I access FitHub.
 ```
 
 **Acceptance Criteria**
@@ -102,9 +104,9 @@ so that I have a single, unified workout history regardless of which device I us
 - [ ] AC-1: A mobile client can complete an OAuth flow for a cloud platform; tokens are stored server-side, never returned to the client.
 - [ ] AC-2: Backend polls Zwift every 30 minutes (±1 min) for each connected user and stores new activities.
 - [ ] AC-3: Backend processes Strava webhook events within 30 seconds of receipt and fetches activity details.
-- [ ] AC-4: Mobile client can upload an Apple Health activity payload; backend persists raw payload and canonical fields.
+- [ ] AC-4: *(DEFERRED — mobile v2+)* Mobile client can upload an Apple Health activity payload; backend persists raw payload and canonical fields.
 - [ ] AC-5: Deduplication Engine merges activities matching at >85% confidence into one canonical record with multiple source references.
-- [ ] AC-6: When new data is available for a user, backend sends a silent push within 60 seconds of ingestion.
+- [ ] AC-6: *(DEFERRED — mobile v2+)* When new data is available for a user, backend sends a silent push within 60 seconds of ingestion.
 - [ ] AC-7: Mobile client can fetch activities since a cursor and receives only new/updated records.
 - [ ] AC-8: Failed external API calls retry with exponential backoff (5m, 15m, 30m, 1h, capped at 24h total window).
 - [ ] AC-9: An OAuth token marked as invalid (401/403 from platform) is flagged for user re-authentication; backend stops polling until reconnect.
@@ -164,6 +166,16 @@ so that I have a single, unified workout history regardless of which device I us
 - [x] Release notes content drafted — Will accompany feature release
 - **Notes:** Privacy disclosure must explain that tokens are stored server-side.
 
+### ✅ Functional & Structured Logging
+- [x] All services emit JSON-structured logs — Implemented in `packages/core/src/logging/logger.ts`; Hono middleware in `packages/functions/src/api/middleware/logger.ts`
+- [x] Required fields present: `ts`, `level`, `event`, `service`, `env` — Enforced by core logger
+- [x] Correlation ID propagated across services — Hono correlation middleware adds `correlationId` to all request-scoped loggers
+- [x] `userId` included where applicable — Logger child contexts accept `userId` field
+- [x] Error logs include typed error code — `ErrorCode` enum enforced in logger for `error`-level entries
+- [x] Sensitive data not logged — Deny-list in `packages/core/src/logging/logger.ts`; token vault inputs/outputs explicitly excluded
+- [ ] Log aggregator configured for Logpush — T053 pending (destination TBD; candidates: Better Stack / Axiom)
+- **Notes:** Core logger module shipped in Phase 1 (commit `6bfd381`). Logpush destination needs deciding before Phase 7.
+
 ---
 
 ## Technical Specification
@@ -173,9 +185,9 @@ so that I have a single, unified workout history regardless of which device I us
 **In Scope:**
 
 1. **API Gateway**
-   - Authenticated REST endpoints (mobile-to-backend)
+   - Authenticated REST endpoints (client-to-backend)
    - User session/auth management (FitHub identity, distinct from platform OAuth)
-   - Rate limiting on incoming mobile requests
+   - Rate limiting on incoming client requests
    - Common error response format
 
 2. **OAuth Token Vault**
@@ -204,37 +216,36 @@ so that I have a single, unified workout history regardless of which device I us
    - Raw platform payloads stored in R2 blob storage at deterministic paths; `activity_sources` stores reference metadata
    - Schema versioning to support re-normalization
 
-6. **Push Notification Service**
+6. **Push Notification Service** *(DEFERRED — mobile v2+)*
    - APNs (iOS) and FCM (Android) integration
    - Silent pushes (data-only) to wake mobile sync client
    - Per-device token registration/refresh from mobile
    - Push failure handling (invalid token → mark device inactive)
 
-7. **Apple Health Ingestion Endpoint**
+7. **Apple Health Ingestion Endpoint** *(DEFERRED — mobile v2+)*
    - `POST /api/health/upload` accepts batched activity payloads from mobile
    - Validates payload, persists raw + canonical, runs dedup, emits push to other user devices
 
 **Out of Scope:**
 
-- Mobile app implementation (covered in features 001/002/003)
-- Platform-specific OAuth UI flows on mobile (covered in features 001/002)
-- Apple Health observer/extraction logic on iOS (covered in feature 003)
+- Mobile app implementation (native mobile is postponed; planned for v2+)
+- Platform-specific OAuth UI flows on mobile (v2+)
+- Apple Health observer/extraction logic on iOS (v2+ — mobile only)
 - User account creation / login UI (assumed handled by separate `001-user-authentication` feature; this spec assumes authenticated user identity is available)
 - Health Connect (Android) — v2+
-- Web client / browser access — v2+
 - Analytics, dashboards, export — v2+
 - Activity editing by users — v2+
 
 ### Technical Constraints
 
-- **Platform Compatibility:** Backend service (cloud-hosted, not user-facing). Must serve iOS and Android mobile clients.
+- **Platform Compatibility:** Backend service (cloud-hosted). v1 serves the Astro web client (`005-web-frontend`). Future mobile clients (iOS/Android) will be added in v2+.
 - **API/Service Dependencies:** Zwift API, Strava API + webhooks, APNs, FCM, Workers Secrets for encryption master key, D1 (Cloudflare SQLite) for persistence, R2 for blob storage.
 - **Data Format/Schema Changes:** Schema versioning required; raw payloads enable re-normalization without re-fetch.
 - **Performance Requirements:**
-  - API gateway: P95 <500ms for mobile read endpoints.
+  - API gateway: P95 <500ms for web client read endpoints.
   - Sync orchestrator: complete a per-user poll within 60s for typical user (50 activities to fetch).
-  - Push delivery: <60s from ingestion to mobile push.
-  - End-to-end latency (platform event → mobile notification): <5 min P95.
+  - Push delivery: <60s from ingestion to client notification (mobile push deferred to v2+).
+  - End-to-end latency (platform event → web UI refresh): <5 min P95.
 - **Security/Compliance:**
   - Tokens encrypted at rest with app-layer AES-256-GCM; master key in Workers Secrets.
   - All transport TLS 1.3+.
@@ -440,7 +451,7 @@ See `.specify/memory/architecture-overview.md` for the full system diagram. The 
   - **Resolution:** Default: indefinite for canonical fields; raw payloads compressed after 1 year. Configurable per user (paid tier may keep raw forever). Detailed retention policy deferred to compliance review.
 
 - **Q4: Should the backend support a web client in MVP?**
-  - **Resolution:** No. Mobile-only in v1. Web client deferred to v2+.
+  - **Resolution:** Yes — resolved by the 2026-05-06 pivot. The v1 client is the Astro web app (`005-web-frontend`). Native mobile is deferred to v2+.
 
 - **Q5: How does the user un-merge an incorrectly auto-merged activity?**
   - **Resolution:** Out of scope for v1 backend foundation. Raw payloads in `activity_sources` preserve the data needed to un-merge later. UX deferred to v1.1.

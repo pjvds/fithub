@@ -131,39 +131,39 @@
 
 ---
 
-## Phase 5: US3 — Apple Health Upload + Deduplication
+## Phase 5: US3 — Deduplication Engine *(Apple Health upload deferred to mobile v2+)*
 
-> **User Story:** "As the FitHub mobile app, I want to upload Apple Health activities to the backend, so that they are deduplicated against cloud-platform data and available on the user's other devices."
+> **User Story (active):** General dedup engine: processes `activity.ingested` events from all platforms (Zwift, Strava) and resolves duplicates.
 >
-> **Acceptance Criteria:** AC-4 (upload Health payload), AC-5 (dedup >85% auto-merge), AC-7 (paginated fetch includes Health data)
+> **User Story (deferred):** "As the FitHub mobile app, I want to upload Apple Health activities to the backend…" — T042, T043, T046 postponed; see mobile v2+.
 >
-> **Independent test:** Upload Health batch → dedup runs → matching activities merged; pending dedup decisions surfaced at `/api/dedup/pending`; resolve decision.
+> **Acceptance Criteria:** AC-5 (dedup >85% auto-merge), AC-7 (paginated fetch includes deduped data)
+>
+> **Independent test:** Ingest matching activities from Zwift + Strava → dedup runs → matching activities merged; pending dedup decisions surfaced at `/api/dedup/pending`; resolve decision.
 
 - [ ] T039 🔗 [US3] Implement dedup scoring function `score(candidate, existing)` in `packages/core/src/dedup/scorer.ts` — returns confidence (0–1) + breakdown ({type, time, duration, distance}); weights: type 30, start_time ±5m 30, duration ±10% 25, distance ±5% 15
 - [ ] T040 🔗 [US3] Implement merge logic in `packages/core/src/dedup/merger.ts` — per-field fidelity ranking; creates canonical record with multiple activity_sources; emits `activity.merged` event
 - [ ] T041 🔗 [US3] Implement dedup consumer Worker in `packages/functions/src/worker/dedup-consumer.ts` — subscribes to `activity.ingested` events on event-bus Queue; runs scorer against existing activities (same user, ±15 min window); auto-merges >85%, writes dedup_pending for 70–85%, creates new activity for <70%; emits `activity.created` or `activity.merged`
-- [ ] T042 🔗 [US3] Implement `AppleHealthAdapter` in `packages/core/src/adapters/apple-health-adapter.ts` — no fetch; transforms uploaded payloads to canonical form; no token management
-- [ ] T043 👤 [US3] Implement `POST /api/health/upload` in `packages/functions/src/api/routes/health.ts` — Zod-validates batch payload; stores raw in R2; emits `health_upload.received` events; returns accepted count + duplicates skipped
+- [POSTPONED] T042 🔗 [US3] Implement `AppleHealthAdapter` in `packages/core/src/adapters/apple-health-adapter.ts` — no fetch; transforms uploaded payloads to canonical form; no token management
+- [POSTPONED] T043 👤 [US3] Implement `POST /api/health/upload` in `packages/functions/src/api/routes/health.ts` — Zod-validates batch payload; stores raw in R2; emits `health_upload.received` events; returns accepted count + duplicates skipped
 - [ ] T044 [P] 👤 [US3] Implement `GET /api/dedup/pending` in `packages/functions/src/api/routes/dedup.ts` — returns pending dedup decisions for authenticated user with candidate + match activity details
 - [ ] T045 [P] 👤 [US3] Implement `POST /api/dedup/:id/resolve` in `packages/functions/src/api/routes/dedup.ts` — accepts `{decision: 'merge'|'separate'}`; updates dedup_pending; if merge, executes merge logic; emits appropriate events
-- [ ] T046 ✅ [US3] Verify: upload Apple Health batch; dedup runs against existing Zwift/Strava activities; >85% auto-merged; 70–85% surfaced as pending; resolve pending works; `GET /api/activities` includes merged data
+- [POSTPONED] T046 ✅ [US3] Verify: upload Apple Health batch; dedup runs against existing Zwift/Strava activities; >85% auto-merged; 70–85% surfaced as pending; resolve pending works; `GET /api/activities` includes merged data
 
 ---
 
-## Phase 6: US2 — Push Notifications
+## Phase 6: US2 — Push Notifications *(DEFERRED — mobile v2+)*
 
-> **User Story:** "As the FitHub mobile app, I want to receive a push notification when new activities are available, so that I can fetch and display them with minimal latency and battery impact."
+> All tasks in this phase are postponed. Push notifications require native mobile clients (APNs/FCM), which are not part of the v1 web-only release.
 >
-> **Acceptance Criteria:** AC-6 (silent push within 60s of ingestion)
->
-> **Independent test:** Ingest an activity → push notification delivered to registered device within 60s; inactive token detected and device deactivated.
+> **Deferred User Story:** "As the FitHub mobile app, I want to receive a push notification when new activities are available…"
 
-- [ ] T047 🔗 [US2] Implement APNs sender module in `packages/core/src/push/apns.ts` — JWT generation (ES256 with team key), HTTP/2 push call, handle 410 (unregistered) → deactivate device
-- [ ] T048 [P] 🔗 [US2] Implement FCM sender module in `packages/core/src/push/fcm.ts` — OAuth2 service account auth, HTTP v1 API call, handle `UNREGISTERED` → deactivate device
-- [ ] T049 👤 [US2] Implement `POST /api/devices/register` in `packages/functions/src/api/routes/devices.ts` — upserts push_devices row for authenticated user
-- [ ] T050 [P] 👤 [US2] Implement `DELETE /api/devices/:id` in `packages/functions/src/api/routes/devices.ts` — deletes push_devices row
-- [ ] T051 🔗 [US2] Implement push notifier consumer in `packages/functions/src/worker/push-consumer.ts` — subscribes to `activity.created`, `activity.merged`, `connection.revoked`, `connection.degraded`, `sync_job.failed`, `token.refresh_failed`, `user.export_ready` events; sends silent push to all user's active devices via APNs/FCM
-- [ ] T052 ✅ [US2] Verify: register device; ingest activity; push delivered within 60s; unregister device; verify no further pushes; 410/UNREGISTERED marks device inactive
+- [POSTPONED] T047 🔗 [US2] Implement APNs sender module in `packages/core/src/push/apns.ts` — JWT generation (ES256 with team key), HTTP/2 push call, handle 410 (unregistered) → deactivate device
+- [POSTPONED] T048 [P] 🔗 [US2] Implement FCM sender module in `packages/core/src/push/fcm.ts` — OAuth2 service account auth, HTTP v1 API call, handle `UNREGISTERED` → deactivate device
+- [POSTPONED] T049 👤 [US2] Implement `POST /api/devices/register` in `packages/functions/src/api/routes/devices.ts` — upserts push_devices row for authenticated user
+- [POSTPONED] T050 [P] 👤 [US2] Implement `DELETE /api/devices/:id` in `packages/functions/src/api/routes/devices.ts` — deletes push_devices row
+- [POSTPONED] T051 🔗 [US2] Implement push notifier consumer in `packages/functions/src/worker/push-consumer.ts` — subscribes to `activity.created`, `activity.merged`, `connection.revoked`, `connection.degraded`, `sync_job.failed`, `token.refresh_failed`, `user.export_ready` events; sends silent push to all user's active devices via APNs/FCM
+- [POSTPONED] T052 ✅ [US2] Verify: register device; ingest activity; push delivered within 60s; unregister device; verify no further pushes; 410/UNREGISTERED marks device inactive
 
 ---
 
