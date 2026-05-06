@@ -68,11 +68,27 @@ export default $config({
       link: [db, eventBus],
     });
 
+    // Scheduler Worker — cron triggers every 30 minutes (Zwift) and hourly (Strava reconcile)
+    const scheduler = new sst.cloudflare.Worker("Scheduler", {
+      handler: "packages/functions/src/scheduler/index.ts",
+      link: [db, syncJobs, tokenMasterKey, zwiftClientSecret, stravaClientSecret],
+    });
+
+    // Sync worker — queue consumer for sync-jobs and retry-jobs
+    // NOTE: UserSyncCoordinator Durable Object namespace binding must be added
+    // via the Cloudflare dashboard or wrangler.toml transform after first deploy.
+    const syncWorker = new sst.cloudflare.Worker("SyncWorker", {
+      handler: "packages/functions/src/worker/index.ts",
+      link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, zwiftClientSecret, stravaClientSecret],
+    });
+
     return {
       apiUrl: api.url,
       dbId: db.id,
       blobStore: blobStore.name,
       outboxRelay: outboxRelay.id,
+      scheduler: scheduler.id,
+      syncWorker: syncWorker.id,
     };
   },
 });

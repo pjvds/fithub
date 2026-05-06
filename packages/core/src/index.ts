@@ -5,3 +5,4 @@ export * from "./outbox/index.js";
 export * from "./crypto/index.js";
 export * from "./adapters/index.js";
 export * from "./audit/index.js";
+export * from "./sync/index.js";

@@ -5,6 +5,9 @@ import { authMiddleware, type AuthVariables } from "./middleware/auth.js";
 import { correlationMiddleware, type CorrelationVariables } from "./middleware/correlation.js";
 import { loggerMiddleware, type LoggerVariables } from "./middleware/logger.js";
 import { connectionsRouter } from "./routes/connections.js";
+import { createWebhooksRouter } from "./routes/webhooks.js";
+import { createActivitiesRouter } from "./routes/activities.js";
+import { createSyncRouter } from "./routes/sync.js";
 
 interface AppEnv {
   Bindings: Record<string, never>;
@@ -39,6 +42,9 @@ app.get("/health", (c) =>
   }),
 );
 
+// Unauthenticated webhook routes
+app.route("/api/webhooks", createWebhooksRouter());
+
 const authedRoutes = new Hono<AppEnv>();
 
 const jwksUrl = (globalThis as { OPENAUTH_JWKS_URL?: string }).OPENAUTH_JWKS_URL ?? "https://auth.fithub.app/.well-known/jwks.json";
@@ -46,6 +52,8 @@ authedRoutes.use("*", authMiddleware({ jwksUrl }));
 
 authedRoutes.get("/me", (c) => c.json({ userId: c.get("userId") }));
 authedRoutes.route("/connections", connectionsRouter);
+authedRoutes.route("/activities", createActivitiesRouter());
+authedRoutes.route("/sync", createSyncRouter());
 
 app.route("/api", authedRoutes);
 

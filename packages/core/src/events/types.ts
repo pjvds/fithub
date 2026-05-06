@@ -21,7 +21,8 @@ export type DomainEventType =
   | "sync_job.failed"
   | "token.refresh_failed"
   | "user.deleted"
-  | "user.export_ready";
+  | "user.export_ready"
+  | "webhook.strava.activity_created";
 
 export function newCloudEvent<T>(input: {
   id: string;

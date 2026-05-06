@@ -32,6 +32,22 @@ export const LogEvent = {
   oauthCallbackFailed: "oauth.callback.failed",
   oauthDisconnectStarted: "oauth.disconnect.started",
   oauthDisconnectCompleted: "oauth.disconnect.completed",
+
+  schedulerTickStarted: "scheduler.tick.started",
+  schedulerTickCompleted: "scheduler.tick.completed",
+
+  syncJobEnqueued: "sync.job.enqueued",
+  syncJobStarted: "sync.job.started",
+  syncJobCompleted: "sync.job.completed",
+  syncJobFailed: "sync.job.failed",
+
+  activityIngested: "sync.activity.ingested",
+  rateLimitExhausted: "sync.rate_limit.exhausted",
+
+  webhookSubscriptionCreated: "webhook.subscription.created",
+  webhookSubscriptionDeleted: "webhook.subscription.deleted",
+  webhookReceived: "webhook.received",
+  webhookSignatureFailed: "webhook.signature.failed",
 } as const;
 
 export type LogEvent = (typeof LogEvent)[keyof typeof LogEvent];
