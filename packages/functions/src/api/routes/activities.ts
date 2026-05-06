@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, lt, desc } from "drizzle-orm";
 import { Resource } from "sst";
-import { activities, activitySources } from "@fithub/core";
+import { activities, activitySources, dedupEvaluations, type DedupReasoning } from "@fithub/core";
 import type { AuthVariables } from "../middleware/auth.js";
 import type { LoggerVariables } from "../middleware/logger.js";
 import type { CorrelationVariables } from "../middleware/correlation.js";
@@ -109,11 +109,75 @@ export function createActivitiesRouter(): Hono<AppEnv> {
         ? String(
             filtered[filtered.length - 1]!.startedAt instanceof Date
               ? (filtered[filtered.length - 1]!.startedAt as Date).getTime()
-              : (filtered[filtered.length - 1]!.startedAt as number),
+              : (filtered[filtered.length - 1]!.startedAt as unknown as number),
           )
         : null;
 
     return c.json({ items, nextCursor });
+  });
+
+  /**
+   * GET /api/activities/:id/dedup
+   * Returns all dedup evaluations for a specific activity (FR-20).
+   * Explains why the activity was or was not flagged as a duplicate.
+   *
+   * - 404 if activity doesn't exist or belongs to another user
+   * - evaluations: [] with summary if no candidates were found within the window
+   */
+  router.get("/:id/dedup", async (c) => {
+    const userId = c.var.userId;
+    const activityId = c.req.param("id");
+    const r = Resource as unknown as { FithubDb: D1Database };
+    const db = drizzle(r.FithubDb);
+
+    // Verify the activity exists and belongs to this user
+    const [activity] = await db
+      .select({ id: activities.id })
+      .from(activities)
+      .where(and(eq(activities.id, activityId), eq(activities.userId, userId)))
+      .limit(1);
+
+    if (!activity) {
+      return c.json({ error: "not found" }, 404);
+    }
+
+    const evalRows = await db
+      .select()
+      .from(dedupEvaluations)
+      .where(
+        and(
+          eq(dedupEvaluations.activityId, activityId),
+          eq(dedupEvaluations.userId, userId),
+        ),
+      )
+      .orderBy(desc(dedupEvaluations.evaluatedAt))
+      .all();
+
+    if (evalRows.length === 0) {
+      return c.json({
+        evaluations: [],
+        summary: "No activities were found within the ±15-minute window when this activity was ingested",
+      });
+    }
+
+    const evaluations = evalRows.map((row) => {
+      let reasoning: DedupReasoning | null = null;
+      try {
+        reasoning = JSON.parse(row.reasoningJson) as DedupReasoning;
+      } catch {
+        // malformed JSON — return null reasoning
+      }
+      return {
+        id: row.id,
+        comparedToId: row.comparedToId,
+        confidence: row.confidence,
+        outcome: row.outcome,
+        reasoning,
+        evaluatedAt: row.evaluatedAt instanceof Date ? row.evaluatedAt.toISOString() : new Date(row.evaluatedAt as unknown as number).toISOString(),
+      };
+    });
+
+    return c.json({ evaluations });
   });
 
   return router;
