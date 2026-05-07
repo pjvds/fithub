@@ -40,10 +40,12 @@ export default $config({
     });
 
     // Auth worker — OpenAuth.js issuer with CloudflareStorage
+    const authDomain = "auth.fithub.space";
     const auth = new sst.cloudflare.Worker("Auth", {
       handler: "packages/functions/src/auth/index.ts",
       link: [authKv, db, emailProviderKey],
       url: true,
+      domain: authDomain,
     });
 
     const apiSecrets = [
@@ -89,7 +91,7 @@ export default $config({
       domain: "app.fithub.space",
       link: [auth],
       environment: {
-        AUTH_WORKER_URL: auth.url,
+        AUTH_WORKER_URL: `https://${authDomain}`,
         API_BASE_URL: api.url,
       },
     });
