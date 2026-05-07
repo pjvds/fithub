@@ -42,6 +42,27 @@ fithub/
 └── mobile/                     # Placeholder — native mobile deferred
 ```
 
+## Git Commits
+
+- **Never** include a `Co-authored-by` trailer in commit messages.
+- Commit messages must be **functional and descriptive** — a reader unfamiliar with internal feature names must understand what changed and why.
+  - ❌ `fix(ci): commit feat-008 auth changes that were never staged`
+  - ❌ `feat(008): add auth worker` ← internal tracking IDs mean nothing to readers
+  - ✅ `fix(ci): add missing auth worker files and resend dependency`
+  - ✅ `feat(auth): add OpenAuth.js issuer worker with magic-link email flow`
+- Never reference internal spec/task IDs (feat-008, T017, etc.) in commit messages. Describe the actual change.
+
+## Before Every Push — Simulate CI Locally
+
+Run these in order. Fix any failures before pushing.
+
+```bash
+npm ci           # strict install — catches package.json / lock file drift
+npm run lint
+npm run typecheck
+npm test
+```
+
 ## Commands
 
 ```bash
