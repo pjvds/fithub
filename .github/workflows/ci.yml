@@ -89,9 +89,6 @@ jobs:
           npx sst secret set STRAVA_CLIENT_ID "$STRAVA_CLIENT_ID" --stage dev
           npx sst secret set REDIRECT_BASE_URL "$REDIRECT_BASE_URL" --stage dev
           npx sst secret set OPENAUTH_SIGNING_KEY "$OPENAUTH_SIGNING_KEY" --stage dev
-          npx sst secret set APPLE_CLIENT_SECRET "$APPLE_CLIENT_SECRET" --stage dev
-          npx sst secret set GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET" --stage dev
-          npx sst secret set EMAIL_PROVIDER_KEY "$EMAIL_PROVIDER_KEY" --stage dev
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TOKEN_MASTER_KEY: ${{ secrets.TOKEN_MASTER_KEY }}
@@ -99,9 +96,6 @@ jobs:
           STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
           REDIRECT_BASE_URL: ${{ secrets.REDIRECT_BASE_URL }}
           OPENAUTH_SIGNING_KEY: ${{ secrets.OPENAUTH_SIGNING_KEY }}
-          APPLE_CLIENT_SECRET: ${{ secrets.APPLE_CLIENT_SECRET }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          EMAIL_PROVIDER_KEY: ${{ secrets.EMAIL_PROVIDER_KEY }}
       - name: Deploy to dev stage
         run: npx sst deploy --stage dev
         env:

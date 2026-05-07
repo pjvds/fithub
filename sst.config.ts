@@ -17,9 +17,6 @@ export default $config({
     const stravaClientId = new sst.Secret("STRAVA_CLIENT_ID");
     const redirectBaseUrl = new sst.Secret("REDIRECT_BASE_URL");
     const openauthSigningKey = new sst.Secret("OPENAUTH_SIGNING_KEY");
-    const appleClientSecret = new sst.Secret("APPLE_CLIENT_SECRET");
-    const googleClientSecret = new sst.Secret("GOOGLE_CLIENT_SECRET");
-    const emailProviderKey = new sst.Secret("EMAIL_PROVIDER_KEY");
 
     const db = new sst.cloudflare.D1("FithubDb");
 
@@ -48,9 +45,6 @@ export default $config({
       stravaClientId,
       redirectBaseUrl,
       openauthSigningKey,
-      appleClientSecret,
-      googleClientSecret,
-      emailProviderKey,
     ];
 
     const api = new sst.cloudflare.Worker("Api", {

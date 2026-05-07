@@ -84,7 +84,7 @@ so that I never have to run manual local commands before a deployment works.
 
 ### ✅ Data Privacy & Security
 - [x] Secrets (Cloudflare tokens, SST app credentials) are stored in GitHub Environment secrets — never in source code or logs
-- [x] All 9 secrets (1 infrastructure token + 8 SST app secrets) are managed in the GitHub `dev` environment and seeded to Cloudflare automatically by the pipeline
+- [x] All secrets are managed in the GitHub `dev` environment and seeded to Cloudflare automatically by the pipeline: 6 total — 1 infrastructure token (`CLOUDFLARE_API_TOKEN`) + 5 SST app secrets (`TOKEN_MASTER_KEY`, `STRAVA_CLIENT_SECRET`, `STRAVA_CLIENT_ID`, `REDIRECT_BASE_URL`, `OPENAUTH_SIGNING_KEY`). `APPLE_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, and `EMAIL_PROVIDER_KEY` are deferred until the auth worker is implemented.
 - [x] Pipeline access follows least-privilege: only the minimum permissions required per job
 - [x] No user data or PII passes through the pipeline
 - **Notes:** GitHub is the single authoritative source for all credential values. The deployment runtime reads them from Cloudflare's secret store, which is seeded by CI on every deploy.
@@ -151,7 +151,7 @@ so that I never have to run manual local commands before a deployment works.
 - **CI Platform:** GitHub Actions
 - **Hosting:** Cloudflare (Pages for web frontend, Workers for backend services)
 - **Stages:** `dev` only (prod stage deferred)
-- **Secrets:** All credential values are stored in GitHub Environment secrets. The pipeline seeds SST app secrets to Cloudflare's secret store on every deployment; the deployed runtime reads from Cloudflare. 9 secrets total: `CLOUDFLARE_API_TOKEN` + 8 SST app secrets (`TOKEN_MASTER_KEY`, `STRAVA_CLIENT_SECRET`, `STRAVA_CLIENT_ID`, `REDIRECT_BASE_URL`, `OPENAUTH_SIGNING_KEY`, `APPLE_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, `EMAIL_PROVIDER_KEY`).
+- **Secrets:** All credential values are stored in GitHub Environment secrets. The pipeline seeds SST app secrets to Cloudflare's secret store on every deployment; the deployed runtime reads from Cloudflare. 6 secrets total: `CLOUDFLARE_API_TOKEN` + 5 SST app secrets (`TOKEN_MASTER_KEY`, `STRAVA_CLIENT_SECRET`, `STRAVA_CLIENT_ID`, `REDIRECT_BASE_URL`, `OPENAUTH_SIGNING_KEY`). `APPLE_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, and `EMAIL_PROVIDER_KEY` are deferred until the auth worker is implemented.
 - **Credential scope:** Cloudflare API token must be scoped to minimum required permissions
 
 ### Architecture & Components
@@ -181,7 +181,7 @@ Push to master
 **Component Changes:**
 - `.github/workflows/`: CI/CD workflow file — `deploy-dev` job includes seed step before SST deploy
 - `sst.config.ts`: Stages already configured; no changes expected
-- Repository settings: GitHub Environment (`dev`) configured with 9 secrets (1 Cloudflare token + 8 SST app secrets)
+- Repository settings: GitHub Environment (`dev`) configured with 6 secrets (1 Cloudflare token + 5 SST app secrets; 3 auth secrets deferred)
 
 ---
 
@@ -238,3 +238,11 @@ Push to master
 
 
 ---
+
+
+## Clarifications
+
+### Session 2025-05
+
+- **Q: Should the anticipatory Apple/Google/email auth secrets be kept in `sst.config.ts`?**
+  A: Keep `OPENAUTH_SIGNING_KEY` only (needed now for JWT verification). Remove `APPLE_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, and `EMAIL_PROVIDER_KEY` until the auth worker (`packages/functions/src/auth/`) is implemented. At that point, re-add the relevant secrets to `sst.config.ts`, `ci.yml`, and `quickstart.md`.

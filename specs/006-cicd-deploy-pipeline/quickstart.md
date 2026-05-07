@@ -49,9 +49,8 @@ This guide documents the one-time setup steps required before the CI/CD pipeline
 | `STRAVA_CLIENT_ID` | From Strava API settings |
 | `REDIRECT_BASE_URL` | `https://app.fithub.app` (or your custom domain) |
 | `OPENAUTH_SIGNING_KEY` | 32-byte random hex string |
-| `APPLE_CLIENT_SECRET` | Apple Sign-in private key JWT |
-| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console OAuth credentials |
-| `EMAIL_PROVIDER_KEY` | API key for your email provider (Resend, Postmark, etc.) |
+
+> **Deferred:** `APPLE_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, and `EMAIL_PROVIDER_KEY` are not required until the auth worker is implemented. They will be added back when that feature is built.
 
 4. (Optional) Add environment protection rules if desired
 
