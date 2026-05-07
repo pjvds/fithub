@@ -130,7 +130,7 @@ describe("activities router", () => {
 
   it("GET / with platform filter returns only matching activities", async () => {
     // No sources loaded — all filtered out
-    const res = await app.request("/activities?platform=zwift");
+    const res = await app.request("/activities?platform=strava");
     expect(res.status).toBe(200);
     const body = await res.json() as { items: unknown[] };
     expect(Array.isArray(body.items)).toBe(true);

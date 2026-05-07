@@ -13,8 +13,6 @@ export default $config({
   },
   async run() {
     const tokenMasterKey = new sst.Secret("TOKEN_MASTER_KEY");
-    const zwiftClientSecret = new sst.Secret("ZWIFT_CLIENT_SECRET");
-    const zwiftClientId = new sst.Secret("ZWIFT_CLIENT_ID");
     const stravaClientSecret = new sst.Secret("STRAVA_CLIENT_SECRET");
     const stravaClientId = new sst.Secret("STRAVA_CLIENT_ID");
     const redirectBaseUrl = new sst.Secret("REDIRECT_BASE_URL");
@@ -46,8 +44,6 @@ export default $config({
 
     const apiSecrets = [
       tokenMasterKey,
-      zwiftClientSecret,
-      zwiftClientId,
       stravaClientSecret,
       stravaClientId,
       redirectBaseUrl,
@@ -68,10 +64,10 @@ export default $config({
       link: [db, eventBus],
     });
 
-    // Scheduler Worker — cron triggers every 30 minutes (Zwift) and hourly (Strava reconcile)
+    // Scheduler Worker — cron triggers hourly for Strava reconcile
     const scheduler = new sst.cloudflare.Worker("Scheduler", {
       handler: "packages/functions/src/scheduler/index.ts",
-      link: [db, syncJobs, tokenMasterKey, zwiftClientSecret, stravaClientSecret],
+      link: [db, tokenMasterKey, stravaClientSecret],
     });
 
     // Sync worker — queue consumer for sync-jobs and retry-jobs
@@ -79,7 +75,7 @@ export default $config({
     // via the Cloudflare dashboard or wrangler.toml transform after first deploy.
     const syncWorker = new sst.cloudflare.Worker("SyncWorker", {
       handler: "packages/functions/src/worker/index.ts",
-      link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, zwiftClientSecret, stravaClientSecret],
+      link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientSecret],
     });
 
     // Web frontend — Astro app with SSR via Cloudflare Pages Functions

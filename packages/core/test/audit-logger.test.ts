@@ -20,7 +20,7 @@ describe("logAuditEvent", () => {
     await logAuditEvent(db, {
       userId: "u-1",
       eventType: "connection.created",
-      platform: "zwift",
+      platform: "strava",
       metadata: { connectionId: "c-1" },
     });
     const rows = (db as unknown as { _rows: unknown[] })._rows;
@@ -28,7 +28,7 @@ describe("logAuditEvent", () => {
     const row = rows[0] as Record<string, unknown>;
     expect(row.userId).toBe("u-1");
     expect(row.eventType).toBe("connection.created");
-    expect(row.platform).toBe("zwift");
+    expect(row.platform).toBe("strava");
     expect(row.metadata).toBe(JSON.stringify({ connectionId: "c-1" }));
     expect(typeof row.id).toBe("string");
   });

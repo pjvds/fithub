@@ -9,7 +9,7 @@ import { server } from "../../vitest.setup";
 import { http, HttpResponse } from "msw";
 
 const DEFAULT_PROPS = {
-  platform: "zwift" as const,
+  platform: "strava" as const,
   apiBaseUrl: "https://api.fithub.app",
   correlationId: "test-cid",
 };
@@ -17,7 +17,7 @@ const DEFAULT_PROPS = {
 describe("SyncNowButton", () => {
   it("renders idle state correctly", () => {
     render(<SyncNowButton {...DEFAULT_PROPS} />);
-    expect(screen.getByRole("button", { name: /sync zwift now/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sync strava now/i })).toBeInTheDocument();
   });
 
   it("shows pending state while request is in flight", async () => {
@@ -25,7 +25,7 @@ describe("SyncNowButton", () => {
     server.use(
       http.post("*/api/sync/trigger", async () => {
         await new Promise((r) => setTimeout(r, 50));
-        return HttpResponse.json({ job_id: "j1", platform: "zwift", status: "pending", started_at: 1 }, { status: 202 });
+        return HttpResponse.json({ job_id: "j1", platform: "strava", status: "pending", started_at: 1 }, { status: 202 });
       }),
     );
 
@@ -57,7 +57,7 @@ describe("SyncNowButton", () => {
     server.use(
       http.post("*/api/sync/trigger", async () => {
         await new Promise((r) => setTimeout(r, 100));
-        return HttpResponse.json({ job_id: "j1", platform: "zwift", status: "pending", started_at: 1 }, { status: 202 });
+        return HttpResponse.json({ job_id: "j1", platform: "strava", status: "pending", started_at: 1 }, { status: 202 });
       }),
     );
 

@@ -25,7 +25,7 @@ export function createSyncRouter(): Hono<AppEnv> {
    * Manually triggers a sync for a given platform connection.
    * Returns 409 if a sync job is already in-flight for that platform.
    *
-   * Body: { platform: "zwift" | "strava" }
+   * Body: { platform: "strava" }
    */
   router.post("/trigger", async (c) => {
     const userId = c.var.userId;
@@ -46,8 +46,8 @@ export function createSyncRouter(): Hono<AppEnv> {
     }
 
     const platform = body.platform;
-    if (!platform || !["zwift", "strava"].includes(platform)) {
-      return c.json({ error: "platform must be 'zwift' or 'strava'" }, 400);
+    if (!platform || !["strava"].includes(platform)) {
+      return c.json({ error: "platform must be 'strava'" }, 400);
     }
 
     const conn = await db
@@ -56,7 +56,7 @@ export function createSyncRouter(): Hono<AppEnv> {
       .where(
         and(
           eq(connections.userId, userId),
-          eq(connections.platform, platform as "zwift" | "strava"),
+          eq(connections.platform, platform as "strava"),
           eq(connections.status, "active"),
         ),
       )

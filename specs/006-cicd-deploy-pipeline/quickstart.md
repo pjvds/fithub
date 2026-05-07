@@ -52,8 +52,6 @@ SST app secrets are stored in Cloudflare's secret store — **not** in GitHub. R
 ```bash
 # Set each secret for the dev stage
 npx sst secret set TOKEN_MASTER_KEY "<value>" --stage dev
-npx sst secret set ZWIFT_CLIENT_SECRET "<value>" --stage dev
-npx sst secret set ZWIFT_CLIENT_ID "<value>" --stage dev
 npx sst secret set STRAVA_CLIENT_SECRET "<value>" --stage dev
 npx sst secret set STRAVA_CLIENT_ID "<value>" --stage dev
 npx sst secret set REDIRECT_BASE_URL "https://app.fithub.app" --stage dev

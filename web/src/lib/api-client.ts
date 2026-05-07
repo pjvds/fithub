@@ -176,7 +176,7 @@ export function createApiClient(options: ApiClientOptions) {
     },
 
     /** POST /api/sync/trigger — manually trigger a sync for a platform */
-    triggerSync(platform: "zwift" | "strava"): Promise<ManualSyncResponse> {
+    triggerSync(platform: "strava"): Promise<ManualSyncResponse> {
       return post<ManualSyncResponse>("/api/sync/trigger", { platform });
     },
 

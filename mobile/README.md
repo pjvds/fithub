@@ -20,7 +20,7 @@ Reviving mobile means:
 1. Writing a new spec (e.g., `00X-mobile-client`) that re-evaluates framework options against constraints that exist *at that time*
 2. Reviving `004-apple-health-integration` (currently POSTPONED) — its architecture (events, ingestion endpoint, dedup rules) is preserved in `.specify/memory/architecture-overview.md`
 3. Building out the Push Notification Worker subscriber (the events are already emitted by the backend; only the consumer is deferred)
-4. Optionally re-introducing the original mobile-flow OAuth specs (`002-zwift-oauth`, `003-strava-oauth`) — currently SUPERSEDED in favor of web flows
+4. Evaluating what platform integrations make sense for mobile (Strava OAuth flows exist in `003-strava-oauth`; Zwift support was removed from the project)
 
 ## Related
 

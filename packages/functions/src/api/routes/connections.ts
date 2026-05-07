@@ -11,7 +11,6 @@ import {
   appendOutbox,
   newCloudEvent,
   logAuditEvent,
-  createZwiftAdapter,
   createStravaAdapter,
   LogEvent,
   ErrorCode,
@@ -39,15 +38,13 @@ interface Res {
   FithubDb: D1Database;
   AuthKv: KVNamespace;
   TOKEN_MASTER_KEY: { value: string };
-  ZWIFT_CLIENT_SECRET: { value: string };
-  ZWIFT_CLIENT_ID: { value: string };
   STRAVA_CLIENT_SECRET: { value: string };
   STRAVA_CLIENT_ID: { value: string };
   REDIRECT_BASE_URL: { value: string };
   App?: { stage?: string };
 }
 
-const SUPPORTED_PLATFORMS = ["zwift", "strava"] as const;
+const SUPPORTED_PLATFORMS = ["strava"] as const;
 type Platform = (typeof SUPPORTED_PLATFORMS)[number];
 const STATE_TTL_SECONDS = 300; // 5 minutes
 
@@ -56,9 +53,6 @@ function getResource(): Res {
 }
 
 function getAdapter(platform: Platform, r: Res): OAuthPlatformAdapter {
-  if (platform === "zwift") {
-    return createZwiftAdapter({ clientId: r.ZWIFT_CLIENT_ID.value, clientSecret: r.ZWIFT_CLIENT_SECRET.value });
-  }
   return createStravaAdapter({ clientId: r.STRAVA_CLIENT_ID.value, clientSecret: r.STRAVA_CLIENT_SECRET.value });
 }
 

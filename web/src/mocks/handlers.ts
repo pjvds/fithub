@@ -31,14 +31,6 @@ const MOCK_USER: AuthUser = {
 const MOCK_CONNECTIONS: ConnectionsResponse = {
   connections: [
     {
-      id: "conn-zwift-001",
-      platform: "zwift",
-      status: "active",
-      connected_at: 1_700_000_000,
-      last_synced_at: 1_736_900_000,
-      last_error: null,
-    },
-    {
       id: "conn-strava-001",
       platform: "strava",
       status: "requires_reauth",
@@ -53,7 +45,7 @@ const MOCK_SYNC_HISTORY: SyncHistoryResponse = {
   jobs: [
     {
       id: "job-001",
-      platform: "zwift",
+      platform: "strava",
       status: "success",
       started_at: 1_736_900_000,
       ended_at: 1_736_900_300,
@@ -84,7 +76,7 @@ const MOCK_ACTIVITIES: ActivitiesResponse = {
       distance_m: 40000,
       calories_kcal: 950,
       avg_heart_rate: 152,
-      primary_source: "zwift",
+      primary_source: "strava",
       dedup_group_id: null,
     },
     {
@@ -138,7 +130,7 @@ export const handlers = [
   http.post("*/api/sync/trigger", () => {
     const response: ManualSyncResponse = {
       job_id: `job-${Date.now()}`,
-      platform: "zwift",
+      platform: "strava",
       status: "pending",
       started_at: Math.floor(Date.now() / 1000),
     };

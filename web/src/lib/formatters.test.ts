@@ -90,10 +90,9 @@ describe("formatRelativeTime", () => {
 
 describe("composeSourceBadges", () => {
   it.each([
-    [["zwift"],                  ["Zwift"]],
     [["strava"],                 ["Strava"]],
     [["apple_health"],           ["Apple Health"]],
-    [["zwift", "strava"],        ["Zwift", "Strava"]],
+    [["strava", "apple_health"], ["Strava", "Apple Health"]],
     [[],                         []],
     [["unknown_platform"],       ["Unknown_platform"]], // fallback title-case
   ] as [string[], string[]][])("composeSourceBadges(%j) → %j", (input, expected) => {

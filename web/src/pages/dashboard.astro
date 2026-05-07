@@ -33,8 +33,8 @@ const activeConnections = data.connections.filter(
   (c) => c.status === "active" || c.status === "requires_reauth",
 );
 const syncablePlatforms = data.connections.filter(
-  (c) => c.status === "active" && (c.platform === "zwift" || c.platform === "strava"),
-) as Array<{ platform: "zwift" | "strava"; id: string } & typeof data.connections[0]>;
+  (c) => c.status === "active" && c.platform === "strava",
+) as Array<{ platform: "strava"; id: string } & typeof data.connections[0]>;
 ---
 
 <Layout title="Dashboard">
@@ -69,19 +69,12 @@ const syncablePlatforms = data.connections.filter(
           {fetchError}
         </div>
       ) : data.connections.length === 0 ? (
-        <!-- Empty / onboarding state -->
         <div class="rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
           <p class="text-gray-500 text-base mb-4">No platforms connected yet.</p>
           <div class="flex flex-col sm:flex-row gap-3 justify-center">
             <a
-              href={`${authWorkerUrl}/connect/zwift`}
-              class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
-            >
-              Connect Zwift
-            </a>
-            <a
               href={`${authWorkerUrl}/connect/strava`}
-              class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
             >
               Connect Strava
             </a>

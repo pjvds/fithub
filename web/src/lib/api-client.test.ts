@@ -203,10 +203,10 @@ describe("createApiClient — endpoint coverage", () => {
     const fetch = makeFetch([makeResponse(200, { activities: [], cursor: null })]);
     const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
 
-    await client.listActivities({ cursor: "c1", limit: 20, platform: "zwift" });
+    await client.listActivities({ cursor: "c1", limit: 20, platform: "strava" });
 
     const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
-    expect(url).toContain("platform=zwift");
+    expect(url).toContain("platform=strava");
     expect(url).toContain("limit=20");
   });
 

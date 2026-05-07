@@ -2,7 +2,6 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { Resource } from "sst";
 import { connections, createLogger, LogEvent } from "@fithub/core";
-import type { SyncJobMessage } from "../worker/index.js";
 
 type SchedulerEnv = Record<string, never>;
 
@@ -23,7 +22,6 @@ export default {
 async function runSchedulerTick(cron: string): Promise<void> {
   const r = Resource as unknown as {
     FithubDb: D1Database;
-    SyncJobs: Queue<SyncJobMessage>;
     App?: { stage?: string };
   };
   const stage = (Resource as unknown as { App?: { stage?: string } }).App?.stage ?? "unknown";
@@ -38,57 +36,16 @@ async function runSchedulerTick(cron: string): Promise<void> {
 
   const db = drizzle(r.FithubDb);
 
-  if (isZwiftPoll(cron)) {
-    await enqueueZwiftSyncs(db, r.SyncJobs, log, correlationId);
-  } else if (isStravaReconcile(cron)) {
+  if (isStravaReconcile(cron)) {
     await reconcileStravaConnections(db, log);
   }
 
   log.info(LogEvent.schedulerTickCompleted, { cron });
 }
 
-/** Cron expression: every 30 minutes. */
-function isZwiftPoll(cron: string): boolean {
-  return cron === "*/30 * * * *";
-}
-
 /** Cron expression: every hour. */
 function isStravaReconcile(cron: string): boolean {
   return cron === "0 * * * *";
-}
-
-async function enqueueZwiftSyncs(
-  db: ReturnType<typeof drizzle>,
-  queue: Queue<SyncJobMessage>,
-  log: ReturnType<typeof createLogger>,
-  correlationId: string,
-): Promise<void> {
-  const activeZwift = await db
-    .select()
-    .from(connections)
-    .where(eq(connections.platform, "zwift"))
-    .all();
-
-  const active = activeZwift.filter((c) => c.status === "active");
-
-  for (const conn of active) {
-    const jobId = crypto.randomUUID();
-    const msg: SyncJobMessage = {
-      userId: conn.userId,
-      platform: "zwift",
-      connectionId: conn.id,
-      jobId,
-      attempt: 0,
-      correlationId,
-    };
-
-    await queue.send(msg);
-    log.info(LogEvent.syncJobEnqueued, {
-      userId: conn.userId,
-      platform: "zwift",
-      jobId,
-    });
-  }
 }
 
 /**

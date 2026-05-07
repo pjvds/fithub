@@ -14,7 +14,7 @@ export const connections = sqliteTable(
   {
     id: text("id").primaryKey(),
     userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    platform: text("platform", { enum: ["zwift", "strava"] }).notNull(),
+    platform: text("platform", { enum: ["strava"] }).notNull(),
     accessTokenCipher: text("access_token_cipher").notNull(),
     refreshTokenCipher: text("refresh_token_cipher"),
     scopes: text("scopes"),

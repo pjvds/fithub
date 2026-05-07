@@ -11,7 +11,7 @@ describe("CloudEvents", () => {
       data: {
         userId: "u1",
         activityId: "a1",
-        platform: "zwift",
+        platform: "strava",
         externalId: "ext-1",
       },
     });
@@ -24,7 +24,7 @@ describe("CloudEvents", () => {
     const schema = eventSchemaRegistry["sync_job.completed"];
     const ok = schema.parse({
       userId: "u1",
-      platform: "zwift",
+      platform: "strava",
       jobId: "j1",
       newActivities: 5,
       mergedActivities: 1,

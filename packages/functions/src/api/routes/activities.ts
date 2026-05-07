@@ -25,7 +25,7 @@ export function createActivitiesRouter(): Hono<AppEnv> {
    * Query params:
    *   - limit  (default 20, max 100)
    *   - cursor (opaque cursor from previous response; encodes startedAt ms)
-   *   - platform (optional filter: zwift | strava)
+   *   - platform (optional filter: strava)
    */
   router.get("/", async (c) => {
     const userId = c.var.userId;

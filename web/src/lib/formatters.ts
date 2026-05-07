@@ -100,7 +100,6 @@ export function formatRelativeTime(epochSeconds: number, nowMs: number = Date.no
 // ---------------------------------------------------------------------------
 
 const PLATFORM_LABELS: Record<string, string> = {
-  zwift: "Zwift",
   strava: "Strava",
   apple_health: "Apple Health",
 };
@@ -109,8 +108,8 @@ const PLATFORM_LABELS: Record<string, string> = {
  * Returns display labels for source platform badges.
  * Unknown platforms are returned title-cased as a fallback.
  * Examples:
- *   composeSourceBadges(["zwift"])              → ["Zwift"]
- *   composeSourceBadges(["zwift", "strava"])    → ["Zwift", "Strava"]
+ *   composeSourceBadges(["strava"])              → ["Strava"]
+ *   composeSourceBadges(["strava", "apple_health"]) → ["Strava", "Apple Health"]
  *   composeSourceBadges([])                    → []
  */
 export function composeSourceBadges(sources: string[]): string[] {

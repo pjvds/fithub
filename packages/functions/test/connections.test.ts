@@ -7,7 +7,7 @@ import type { Logger } from "@fithub/core";
 
 // ------------------------------------------------------------------ hoisted mocks
 
-const { kvMock, dbFactory, zwiftMock, stravaMock } = vi.hoisted(() => {
+const { kvMock, dbFactory, stravaMock } = vi.hoisted(() => {
   const kvMock = {
     get: vi.fn(),
     put: vi.fn().mockResolvedValue(undefined),
@@ -44,15 +44,15 @@ const { kvMock, dbFactory, zwiftMock, stravaMock } = vi.hoisted(() => {
   // Factory that always returns the latest db for the current test.
   const dbFactory = { current: makeDb(), make: makeDb };
 
-  const zwiftMock = {
-    platform: "zwift",
-    buildAuthUrl: vi.fn().mockReturnValue("https://zwift.example.com/oauth/authorize?state=x"),
+  const stravaMock = {
+    platform: "strava",
+    buildAuthUrl: vi.fn().mockReturnValue("https://strava.example.com/oauth/authorize?state=x"),
     exchangeCode: vi.fn().mockResolvedValue({
-      accessToken: "zwift-access",
-      refreshToken: "zwift-refresh",
+      accessToken: "strava-access",
+      refreshToken: "strava-refresh",
       expiresAt: new Date(Date.now() + 3600_000),
-      scopes: "openid profile",
-      platformUserId: "z-999",
+      scopes: "read,activity:read_all",
+      platformUserId: "s-123",
     }),
     fetchActivities: vi.fn(),
     refreshToken: vi.fn(),
@@ -60,17 +60,7 @@ const { kvMock, dbFactory, zwiftMock, stravaMock } = vi.hoisted(() => {
     revokeToken: vi.fn().mockResolvedValue(undefined),
   };
 
-  const stravaMock = {
-    platform: "strava",
-    buildAuthUrl: vi.fn().mockReturnValue("https://strava.example.com/oauth/authorize?state=x"),
-    exchangeCode: vi.fn(),
-    fetchActivities: vi.fn(),
-    refreshToken: vi.fn(),
-    validateToken: vi.fn(),
-    revokeToken: vi.fn().mockResolvedValue(undefined),
-  };
-
-  return { kvMock, dbFactory, zwiftMock, stravaMock };
+  return { kvMock, dbFactory, stravaMock };
 });
 
 // ------------------------------------------------------------------ module mocks
@@ -80,8 +70,6 @@ vi.mock("sst", () => ({
     FithubDb: {},
     AuthKv: kvMock,
     TOKEN_MASTER_KEY: { value: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" },
-    ZWIFT_CLIENT_ID: { value: "zwift-id" },
-    ZWIFT_CLIENT_SECRET: { value: "zwift-secret" },
     STRAVA_CLIENT_ID: { value: "strava-id" },
     STRAVA_CLIENT_SECRET: { value: "strava-secret" },
     REDIRECT_BASE_URL: { value: "https://example.com" },
@@ -96,7 +84,6 @@ vi.mock("@fithub/core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@fithub/core")>();
   return {
     ...actual,
-    createZwiftAdapter: () => zwiftMock,
     createStravaAdapter: () => stravaMock,
     encryptToken: vi.fn().mockImplementation(async (token: string) => `enc:${token}`),
     decryptToken: vi.fn().mockImplementation(async (cipher: string) => cipher.replace(/^enc:/, "")),
@@ -151,17 +138,8 @@ describe("connections router", () => {
       expect(body.error).toBe("platform_not_supported");
     });
 
-    it("returns authUrl for zwift", async () => {
-      kvMock.put.mockResolvedValue(undefined);
-
-      const res = await app.request("/connections/zwift/oauth/initiate", { method: "POST" });
-      expect(res.status).toBe(200);
-      const body = (await res.json()) as { authUrl: string };
-      expect(body.authUrl).toContain("zwift.example.com");
-    });
-
     it("stores PKCE state in KV with TTL", async () => {
-      await app.request("/connections/zwift/oauth/initiate", { method: "POST" });
+      await app.request("/connections/strava/oauth/initiate", { method: "POST" });
 
       expect(kvMock.put).toHaveBeenCalledTimes(1);
       const [key, _value, opts] = kvMock.put.mock.calls[0]! as [string, string, { expirationTtl: number }];
@@ -191,7 +169,7 @@ describe("connections router", () => {
 
     it("returns 400 when state is missing from body", async () => {
       kvMock.get.mockResolvedValue(null);
-      const res = await app.request("/connections/zwift/oauth/callback", {
+      const res = await app.request("/connections/strava/oauth/callback", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code: "auth-code" }),
@@ -201,7 +179,7 @@ describe("connections router", () => {
 
     it("returns 400 when state is not found in KV (expired or invalid)", async () => {
       kvMock.get.mockResolvedValue(null);
-      const res = await app.request("/connections/zwift/oauth/callback", {
+      const res = await app.request("/connections/strava/oauth/callback", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code: "auth-code", state: "expired-state" }),
@@ -214,20 +192,20 @@ describe("connections router", () => {
     it("returns 201 and connectionId on successful callback", async () => {
       const statePayload = JSON.stringify({
         userId: "user-1",
-        platform: "zwift",
+        platform: "strava",
         codeVerifier: "verifier-abc",
-        redirectUri: "https://example.com/api/connections/zwift/oauth/callback",
+        redirectUri: "https://example.com/api/connections/strava/oauth/callback",
       });
       kvMock.get.mockResolvedValue(statePayload);
 
-      const res = await app.request("/connections/zwift/oauth/callback", {
+      const res = await app.request("/connections/strava/oauth/callback", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code: "auth-code-123", state: "valid-state" }),
       });
       expect(res.status).toBe(201);
       const body = (await res.json()) as { connectionId: string; platform: string; status: string };
-      expect(body.platform).toBe("zwift");
+      expect(body.platform).toBe("strava");
       expect(body.status).toBe("active");
       expect(body.connectionId).toBeDefined();
     });
@@ -235,13 +213,13 @@ describe("connections router", () => {
     it("returns 400 when state userId does not match authenticated user", async () => {
       const statePayload = JSON.stringify({
         userId: "different-user",
-        platform: "zwift",
+        platform: "strava",
         codeVerifier: "v",
-        redirectUri: "https://example.com/api/connections/zwift/oauth/callback",
+        redirectUri: "https://example.com/api/connections/strava/oauth/callback",
       });
       kvMock.get.mockResolvedValue(statePayload);
 
-      const res = await app.request("/connections/zwift/oauth/callback", {
+      const res = await app.request("/connections/strava/oauth/callback", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code: "c", state: "s" }),
@@ -266,9 +244,9 @@ describe("connections router", () => {
     it("maps DB status to API status correctly", async () => {
       const now = new Date();
       const rows = [
-        { id: "c1", platform: "zwift", status: "active", scopes: null, expiresAt: null, createdAt: now, updatedAt: now },
+        { id: "c1", platform: "strava", status: "active", scopes: null, expiresAt: null, createdAt: now, updatedAt: now },
         { id: "c2", platform: "strava", status: "degraded", scopes: "read", expiresAt: null, createdAt: now, updatedAt: now },
-        { id: "c3", platform: "zwift", status: "revoked", scopes: null, expiresAt: null, createdAt: now, updatedAt: now },
+        { id: "c3", platform: "strava", status: "revoked", scopes: null, expiresAt: null, createdAt: now, updatedAt: now },
       ];
       dbFactory.current = dbFactory.make(rows);
 
@@ -296,7 +274,7 @@ describe("connections router", () => {
 
     it("returns 404 when connection is not found", async () => {
       // Default db returns [] for select
-      const res = await app.request("/connections/zwift/disconnect", {
+      const res = await app.request("/connections/strava/disconnect", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
@@ -310,7 +288,7 @@ describe("connections router", () => {
       const conn = {
         id: "conn-1",
         userId: "user-1",
-        platform: "zwift",
+        platform: "strava",
         status: "active",
         accessTokenCipher: "enc:my-token",
         refreshTokenCipher: null,
@@ -321,7 +299,7 @@ describe("connections router", () => {
       };
       dbFactory.current = dbFactory.make([conn]);
 
-      const res = await app.request("/connections/zwift/disconnect", {
+      const res = await app.request("/connections/strava/disconnect", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
@@ -329,15 +307,15 @@ describe("connections router", () => {
       expect(res.status).toBe(200);
       const body = (await res.json()) as { disconnected: boolean; platform: string };
       expect(body.disconnected).toBe(true);
-      expect(body.platform).toBe("zwift");
+      expect(body.platform).toBe("strava");
     });
 
     it("proceeds with disconnect even when token revocation fails (best-effort)", async () => {
-      zwiftMock.revokeToken.mockRejectedValue(new Error("platform unavailable"));
+      stravaMock.revokeToken.mockRejectedValue(new Error("platform unavailable"));
       const conn = {
         id: "conn-1",
         userId: "user-1",
-        platform: "zwift",
+        platform: "strava",
         status: "active",
         accessTokenCipher: "enc:my-token",
         refreshTokenCipher: null,
@@ -348,7 +326,7 @@ describe("connections router", () => {
       };
       dbFactory.current = dbFactory.make([conn]);
 
-      const res = await app.request("/connections/zwift/disconnect", {
+      const res = await app.request("/connections/strava/disconnect", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),

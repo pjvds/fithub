@@ -2,7 +2,7 @@
 
 > Cross-platform fitness data synchronization — backend + web (v1). Native mobile clients postponed.
 
-FitHub consolidates activity data from cloud fitness platforms (Zwift, Strava, …) behind a single API and surface, eliminating manual data entry and duplicate-activity confusion. v1 ships the backend plus a web frontend; native mobile (and Apple Health) is postponed until a later milestone.
+FitHub consolidates activity data from cloud fitness platforms (Strava, …) behind a single API and surface, eliminating manual data entry and duplicate-activity confusion. v1 ships the backend plus a web frontend; native mobile (and Apple Health) is postponed until a later milestone.
 
 ## Repository Layout
 
@@ -15,7 +15,7 @@ fithub/
 │   │   └── tech-stack.md
 │   ├── specs/
 │   │   ├── 000-backend-foundation/      # active
-│   │   ├── 002-zwift-oauth/             # SUPERSEDED
+│   │   ├── 002-zwift-oauth/             # SUPERSEDED (Zwift removed)
 │   │   ├── 003-strava-oauth/            # SUPERSEDED
 │   │   ├── 004-apple-health-integration/# POSTPONED with mobile
 │   │   └── 005-web-frontend/            # active
@@ -41,7 +41,7 @@ The repository is an **SST monorepo** (npm workspaces). Backend Workers and the 
 | Spec | Status | Notes |
 |---|---|---|
 | `000-backend-foundation` | Active | TypeScript + SST + Cloudflare backbone |
-| `002-zwift-oauth` | **Superseded** | Mobile-flow OAuth; replaced by future `006-zwift-oauth-web` |
+| `002-zwift-oauth` | **Superseded** | Mobile-flow Zwift OAuth; Zwift support removed in feat-007 |
 | `003-strava-oauth` | **Superseded** | Mobile-flow OAuth; replaced by future `007-strava-oauth-web` |
 | `004-apple-health-integration` | **Postponed** | Requires native iOS — revisit with mobile |
 | `005-web-frontend` | Active | Astro web app — v1 user-facing client |

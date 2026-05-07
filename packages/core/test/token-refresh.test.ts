@@ -26,7 +26,7 @@ const mockLogger: Logger = {
 } as unknown as Logger;
 
 const mockAdapter: PlatformAdapter = {
-  platform: "zwift",
+  platform: "strava",
   fetchActivities: vi.fn(),
   refreshToken: vi.fn(),
   validateToken: vi.fn(),
@@ -50,7 +50,7 @@ function makeDb(row: {
     select: vi.fn().mockReturnValue({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([{ id: CONN_ID, userId: USER_ID, platform: "zwift", ...row }]),
+          limit: vi.fn().mockResolvedValue([{ id: CONN_ID, userId: USER_ID, platform: "strava", ...row }]),
         }),
       }),
     }),

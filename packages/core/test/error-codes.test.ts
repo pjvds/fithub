@@ -37,7 +37,7 @@ describe("LoggedError", () => {
   });
 
   it("stores provided fields", () => {
-    const fields = { userId: "u-123", platform: "zwift" };
+    const fields = { userId: "u-123", platform: "strava" };
     const err = new LoggedError(ErrorCode.CONNECTION_NOT_FOUND, "not found", fields);
     expect(err.fields).toEqual(fields);
   });

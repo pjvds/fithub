@@ -91,7 +91,7 @@ describe("sync trigger router", () => {
       const res = await app.request("/sync/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: "zwift" }),
+        body: JSON.stringify({ platform: "strava" }),
       });
       expect(res.status).toBe(404);
     });
@@ -100,7 +100,7 @@ describe("sync trigger router", () => {
       dbFactory.current = dbFactory.make({
         id: "conn-1",
         userId: "user-1",
-        platform: "zwift",
+        platform: "strava",
         status: "active",
         accessTokenCipher: "enc:token",
         refreshTokenCipher: null,
@@ -114,7 +114,7 @@ describe("sync trigger router", () => {
       const res = await app.request("/sync/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: "zwift" }),
+        body: JSON.stringify({ platform: "strava" }),
       });
       expect(res.status).toBe(202);
       const body = await res.json() as { jobId: string };

@@ -305,18 +305,10 @@ function parseActivity(
 async function resolveAdapter(
   platform: string,
   r: {
-    ZwiftClientSecret?: { value: () => string };
     StravaClientSecret?: { value: () => string };
     [key: string]: unknown;
   },
 ): Promise<OAuthPlatformAdapter> {
-  if (platform === "zwift") {
-    const { createZwiftAdapter } = await import("@fithub/core");
-    return createZwiftAdapter({
-      clientId: "fithub",
-      clientSecret: (r.ZwiftClientSecret as { value: () => string })?.value() ?? "",
-    });
-  }
   if (platform === "strava") {
     const { createStravaAdapter } = await import("@fithub/core");
     return createStravaAdapter({

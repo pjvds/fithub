@@ -9,7 +9,7 @@ import { createApiClient, ApiClientError } from "../lib/api-client";
 import type { ManualSyncResponse } from "@fithub/core";
 
 interface Props {
-  platform: "zwift" | "strava";
+  platform: "strava";
   apiBaseUrl: string;
   correlationId: string;
 }
@@ -49,7 +49,7 @@ export default function SyncNowButton({ platform, apiBaseUrl, correlationId }: P
     }
   }, [state, apiBaseUrl, correlationId, platform]);
 
-  const platformLabel = platform === "zwift" ? "Zwift" : "Strava";
+  const platformLabel = "Strava";
 
   return (
     <div className="flex items-center gap-3">

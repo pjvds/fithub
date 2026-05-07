@@ -71,7 +71,7 @@
 *One-time infrastructure setup and end-to-end validation. No story label.*
 
 - [ ] T011 Create the GitHub Environment named `dev` in repository Settings → Environments and add the `CLOUDFLARE_API_TOKEN` secret (see `specs/006-cicd-deploy-pipeline/quickstart.md` for required token permissions)
-- [ ] T012 Pre-seed all 10 SST app secrets for the dev stage via `sst secret set <name> <value> --stage dev` (TOKEN_MASTER_KEY, ZWIFT_CLIENT_SECRET, ZWIFT_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_CLIENT_ID, REDIRECT_BASE_URL, OPENAUTH_SIGNING_KEY, APPLE_CLIENT_SECRET, GOOGLE_CLIENT_SECRET, EMAIL_PROVIDER_KEY)
+- [ ] T012 Pre-seed all 8 SST app secrets for the dev stage via `sst secret set <name> <value> --stage dev` (TOKEN_MASTER_KEY, STRAVA_CLIENT_SECRET, STRAVA_CLIENT_ID, REDIRECT_BASE_URL, OPENAUTH_SIGNING_KEY, APPLE_CLIENT_SECRET, GOOGLE_CLIENT_SECRET, EMAIL_PROVIDER_KEY)
 - [ ] T013 Validate the PR quality gate: push a branch with an intentional failing test and verify the `quality` job fails and blocks merge
 - [ ] T014 Validate the deploy pipeline: merge a valid PR to master and verify the `deploy-dev` job runs, deploys successfully within 5 minutes, no secrets appear in any step log, and running `sst deploy --stage dev` a second time exits cleanly without destructive changes (idempotency — AC-7)
 - [ ] T015 Configure branch protection on `master` in GitHub repository Settings → Branches: require the `quality` status check to pass before merge is permitted, so AC-1 is structurally enforced (not just aspirational)

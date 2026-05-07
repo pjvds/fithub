@@ -35,7 +35,7 @@ export interface SessionUser {
 // Connections
 // ---------------------------------------------------------------------------
 
-export type Platform = "zwift" | "strava" | "apple_health";
+export type Platform = "strava" | "apple_health";
 export type ConnectionStatus = "active" | "requires_reauth" | "disconnected";
 
 export interface Connection {
@@ -62,7 +62,7 @@ export type SyncJobStatus = "pending" | "success" | "partial" | "failed";
 
 export interface SyncJob {
   id: string;
-  platform: "zwift" | "strava";
+  platform: "strava";
   status: SyncJobStatus;
   /** Epoch seconds when the job started */
   started_at: number;
@@ -83,7 +83,7 @@ export interface SyncHistoryResponse {
 export interface ManualSyncResponse {
   /** UUID of the enqueued sync job */
   job_id: string;
-  platform: "zwift" | "strava";
+  platform: "strava";
   status: "pending";
   /** Epoch seconds when the job was enqueued */
   started_at: number;

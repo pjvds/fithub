@@ -6,7 +6,7 @@ const SAMPLE_EVENT: CloudEvent<{ activityId: string }> = {
   specversion: "1.0",
   id: "evt-abc-123",
   type: "com.fithub.activity.synced",
-  source: "/zwift/sync",
+  source: "/strava/sync",
   subject: "user-42",
   time: "2024-03-15T10:00:00.000Z",
   datacontenttype: "application/json",

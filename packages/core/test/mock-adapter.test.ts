@@ -29,10 +29,10 @@ describe("MockAdapter", () => {
 
   it("uses custom platform name and fixtures", async () => {
     const adapter = createMockAdapter({
-      platform: "zwift",
+      platform: "strava",
       activities: [{ externalId: "z-1", rawJson: { id: "z-1" } }],
     });
-    expect(adapter.platform).toBe("zwift");
+    expect(adapter.platform).toBe("strava");
     const acts = await adapter.fetchActivities("t");
     expect(acts).toHaveLength(1);
     expect(acts[0]!.externalId).toBe("z-1");
