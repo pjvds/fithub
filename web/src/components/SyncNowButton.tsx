@@ -12,11 +12,12 @@ interface Props {
   platform: "strava";
   apiBaseUrl: string;
   correlationId: string;
+  accessToken?: string;
 }
 
 type ButtonState = "idle" | "pending" | "success" | "error";
 
-export default function SyncNowButton({ platform, apiBaseUrl, correlationId }: Props) {
+export default function SyncNowButton({ platform, apiBaseUrl, correlationId, accessToken }: Props) {
   const [state, setState] = useState<ButtonState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -33,7 +34,7 @@ export default function SyncNowButton({ platform, apiBaseUrl, correlationId }: P
     setState("pending");
     setErrorMessage(null);
 
-    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId });
+    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId, ...(accessToken ? { accessToken } : {}) });
 
     try {
       const result: ManualSyncResponse = await client.triggerSync(platform);
@@ -47,7 +48,7 @@ export default function SyncNowButton({ platform, apiBaseUrl, correlationId }: P
       setErrorMessage(message);
       setState("error");
     }
-  }, [state, apiBaseUrl, correlationId, platform]);
+  }, [state, apiBaseUrl, correlationId, platform, accessToken]);
 
   const platformLabel = "Strava";
 

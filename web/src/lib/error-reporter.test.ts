@@ -60,6 +60,16 @@ describe("initErrorReporter — window.onerror", () => {
     expect(body).toMatchObject({ message: "Script error" });
   });
 
+  it("includes the correlationId in the report", async () => {
+    const mockFetch = setupReporter();
+
+    window.onerror!("something failed", undefined, 1, 1, new Error("something failed"));
+    await Promise.resolve();
+
+    const body = capturedBody(mockFetch) as { correlation_id: string };
+    expect(body.correlation_id).toBe(CORRELATION_ID);
+  });
+
   it("returns false (does not suppress default handling)", () => {
     setupReporter();
     const result = window.onerror!("err", "src", 1, 1, new Error("x"));

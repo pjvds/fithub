@@ -46,6 +46,7 @@ export class ApiClientError extends Error {
 interface ApiClientOptions {
   baseUrl: string;
   correlationId: string;
+  accessToken?: string;
   /** Optional custom fetch implementation (e.g. for testing) */
   fetch?: typeof globalThis.fetch;
 }
@@ -71,8 +72,8 @@ async function fetchWithRetry(
 
     if (response.ok) return response;
 
-    // Only retry on transient server errors (5xx)
-    if (response.status >= 500 && attempt < MAX_RETRIES) {
+    // Only retry on transient server errors (5xx) and rate limiting (429)
+    if ((response.status >= 500 || response.status === 429) && attempt < MAX_RETRIES) {
       lastError = new ApiClientError({
         status: response.status,
         code: "EXTERNAL_5XX",
@@ -114,6 +115,7 @@ export function createApiClient(options: ApiClientOptions) {
   const baseHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     "x-correlation-id": correlationId,
+    ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}),
   };
 
   async function get<T>(path: string): Promise<T> {

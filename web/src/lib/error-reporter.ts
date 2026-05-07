@@ -41,7 +41,7 @@ export function initErrorReporter({ apiBaseUrl, correlationId }: ReporterOptions
         ...(source ? { source: stripPii(source) } : {}),
       },
       occurred_at: Date.now(),
-      correlation_id: null,
+      correlation_id: correlationId,
     };
     // Fire-and-forget — don't await, don't surface errors to UI
     client.reportError(report).catch(() => {});

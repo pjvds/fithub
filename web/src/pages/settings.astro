@@ -6,20 +6,18 @@
 import Layout from "../layouts/Layout.astro";
 import ExportButton from "../components/ExportButton";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
-import { requireSession } from "../lib/session";
 import { createApiClient } from "../lib/api-client";
 import type { UserProfile } from "@fithub/core";
 
-requireSession(Astro.cookies, Astro.redirect, import.meta.env.AUTH_WORKER_URL, Astro.request.url);
-
 const correlationId: string = Astro.locals.correlationId;
 const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
+const accessToken = Astro.cookies.get("access_token")?.value ?? "";
 
 let profile: UserProfile | null = null;
 let fetchError: string | null = null;
 
 try {
-  const client = createApiClient({ baseUrl: apiBaseUrl, correlationId });
+  const client = createApiClient({ baseUrl: apiBaseUrl, correlationId, accessToken });
   profile = await client.getUserProfile();
 } catch {
   fetchError = "Unable to load profile. Please refresh.";
@@ -64,7 +62,7 @@ try {
         Request a full export of your FitHub data (profile, connections, sync history,
         activity records). You'll receive an email with a download link when the export is ready.
       </p>
-      <ExportButton client:load apiBaseUrl={apiBaseUrl} correlationId={correlationId} />
+      <ExportButton client:load apiBaseUrl={apiBaseUrl} correlationId={correlationId} accessToken={accessToken} />
     </section>
 
     <!-- Account Deletion section -->
@@ -73,7 +71,7 @@ try {
       <p class="text-sm text-red-700">
         Deleting your account permanently removes all your data. This action cannot be undone.
       </p>
-      <ConfirmDeleteModal client:load apiBaseUrl={apiBaseUrl} correlationId={correlationId} />
+      <ConfirmDeleteModal client:load apiBaseUrl={apiBaseUrl} correlationId={correlationId} accessToken={accessToken} />
     </section>
   </div>
 </Layout>

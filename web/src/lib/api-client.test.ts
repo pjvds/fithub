@@ -137,6 +137,56 @@ describe("createApiClient — 4xx errors", () => {
   });
 });
 
+describe("createApiClient — 429 retry", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it("retries on 429 and succeeds on next attempt", async () => {
+    const fetch = makeFetch([
+      makeResponse(429, { code: "RATE_LIMIT", message: "too many requests" }),
+      makeResponse(200, { userId: "user-1", email: null }),
+    ]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    const promise = client.getMe();
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result).toMatchObject({ userId: "user-1" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("createApiClient — accessToken", () => {
+  it("sends Authorization header when accessToken provided", async () => {
+    const fetch = makeFetch([makeResponse(200, { userId: "u", email: null })]);
+    const client = createApiClient({
+      baseUrl: BASE_URL,
+      correlationId: CORRELATION_ID,
+      accessToken: "my-token",
+      fetch,
+    });
+
+    await client.getMe();
+
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    const headers = init?.headers as Record<string, string>;
+    expect(headers?.["Authorization"]).toBe("Bearer my-token");
+  });
+
+  it("does not send Authorization header when accessToken is absent", async () => {
+    const fetch = makeFetch([makeResponse(200, { userId: "u", email: null })]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    await client.getMe();
+
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    const headers = init?.headers as Record<string, string>;
+    expect(headers?.["Authorization"]).toBeUndefined();
+  });
+});
+
 // ---------------------------------------------------------------------------
 // ApiClientError.toApiError()
 // ---------------------------------------------------------------------------

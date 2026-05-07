@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { Resource } from "sst";
 import { createClient } from "@openauthjs/openauth/client";
 import { ErrorCode, LogEvent } from "@fithub/core";
@@ -24,6 +25,12 @@ const app = new Hono<AppEnv>();
 
 app.use("*", correlationMiddleware());
 app.use("*", loggerMiddleware({ service: "api", env: stage }));
+app.use("*", cors({
+  origin: ["https://app.fithub.space", "http://localhost:4321"],
+  allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Correlation-Id", "X-Request-Id"],
+  credentials: true,
+}));
 
 app.use("*", async (c, next) => {
   const start = Date.now();

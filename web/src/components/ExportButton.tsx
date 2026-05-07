@@ -8,12 +8,13 @@ import { createApiClient } from "../lib/api-client";
 interface Props {
   apiBaseUrl: string;
   correlationId: string;
+  accessToken?: string;
 }
 
 const COOLDOWN_KEY = "fithub_export_requested_at";
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
-export default function ExportButton({ apiBaseUrl, correlationId }: Props) {
+export default function ExportButton({ apiBaseUrl, correlationId, accessToken }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [cooledDown, setCooledDown] = useState(false);
 
@@ -34,7 +35,7 @@ export default function ExportButton({ apiBaseUrl, correlationId }: Props) {
     if (status !== "idle" || cooledDown) return;
     setStatus("loading");
 
-    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId });
+    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId, ...(accessToken ? { accessToken } : {}) });
     try {
       await client.requestExport();
       localStorage.setItem(COOLDOWN_KEY, String(Date.now()));

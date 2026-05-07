@@ -7,9 +7,10 @@ import { createApiClient } from "../lib/api-client";
 interface Props {
   apiBaseUrl: string;
   correlationId: string;
+  accessToken?: string;
 }
 
-export default function ConfirmDeleteModal({ apiBaseUrl, correlationId }: Props) {
+export default function ConfirmDeleteModal({ apiBaseUrl, correlationId, accessToken }: Props) {
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -20,7 +21,7 @@ export default function ConfirmDeleteModal({ apiBaseUrl, correlationId }: Props)
     if (!canDelete || status === "loading") return;
     setStatus("loading");
 
-    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId });
+    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId, ...(accessToken ? { accessToken } : {}) });
     try {
       await client.deleteAccount();
       // Redirect to deleted confirmation page (server clears the session cookie)
