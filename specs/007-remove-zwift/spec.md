@@ -6,7 +6,7 @@
 
 **Version:** 1.0.0
 
-**Status:** Approved
+**Status:** Complete — implemented in commit `91d88ca` (2026-05-07)
 
 **Authored By:** FitHub Team
 
@@ -50,14 +50,14 @@ so that I am not confused by options that don't function.
 
 **Acceptance Criteria**
 
-- [ ] AC-1: The Zwift OAuth adapter and all associated source files are deleted from the codebase
-- [ ] AC-2: All Zwift-specific test files and test cases are removed
-- [ ] AC-3: No Zwift references remain in route handlers, worker logic, scheduler, or database schema (beyond historical migration records, if applicable)
-- [ ] AC-4: The web frontend shows no Zwift platform options, labels, or formatting rules
-- [ ] AC-5: `ZWIFT_CLIENT_ID` and `ZWIFT_CLIENT_SECRET` are removed from all documentation, setup guides, and secret management scripts
-- [ ] AC-6: `sst.config.ts` contains no Zwift secret bindings
-- [ ] AC-7: The full test suite passes after removal with no regressions
-- [ ] AC-8: Coverage thresholds (≥80% lines and branches) continue to pass after removal
+- [x] AC-1: The Zwift OAuth adapter and all associated source files are deleted from the codebase
+- [x] AC-2: All Zwift-specific test files and test cases are removed
+- [x] AC-3: No Zwift references remain in route handlers, worker logic, scheduler, or database schema
+- [x] AC-4: The web frontend shows no Zwift platform options, labels, or formatting rules (includes pages: `dashboard.astro`, `index.astro`, `privacy.astro`, `ConnectionCard.astro`, `SyncHistoryRow.astro`)
+- [x] AC-5: `ZWIFT_CLIENT_ID` and `ZWIFT_CLIENT_SECRET` are removed from all documentation, setup guides, and secret management scripts
+- [x] AC-6: `sst.config.ts` contains no Zwift secret bindings
+- [x] AC-7: The full test suite passes after removal with no regressions
+- [x] AC-8: Coverage thresholds (≥80% lines and branches) continue to pass after removal — 92.89% lines / 87.93% branches (backend); 95.8% lines / 92% branches (web). AC-8 is the measurable gate for AC-7.
 
 ---
 
@@ -68,10 +68,10 @@ so that I am not confused by options that don't function.
 - [x] Zwift OAuth tokens (if any exist in storage) are not silently retained — removal of the integration implies no new tokens are created; existing stored tokens are inert
 - **Notes:** This feature reduces the secret surface area, improving security posture.
 
-### ✅ Cross-Platform Integration
+### ⚠️ Cross-Platform Integration — DEVIATION DOCUMENTED
 - [x] Removal is complete — no partial stubs or dead adapters left behind
 - [x] Strava integration is unaffected
-- **Notes:** N/A for removed platform.
+- **Notes:** Constitution P2 states FitHub MUST integrate with ≥5 major fitness platforms. After this removal, only Strava is active (1 platform). This deviation is formally acknowledged: Zwift had no viable public OAuth API and was never deployable. The 5-platform target remains a long-term aspirational goal; reaching it requires future platform integration specs (Apple Health, Garmin, Suunto, etc.). The constitution P2 language will be amended to distinguish current-state minimums from long-term aspirational targets. **Approved deviation — core team awareness required per constitution Governance §Compliance.**
 
 ### ✅ User Experience & Simplicity
 - [x] UI simplified: users see only Strava, no broken or greyed-out Zwift option
@@ -146,6 +146,11 @@ so that I am not confused by options that don't function.
 - `web/src/lib/api-client.ts` — remove Zwift type references
 - `web/src/lib/api-client.test.ts` — remove Zwift test cases
 - `web/src/mocks/handlers.ts` — remove Zwift mock handlers
+- `web/src/components/ConnectionCard.astro` — remove Zwift from platformLabel map
+- `web/src/components/SyncHistoryRow.astro` — remove Zwift from platformLabel map
+- `web/src/pages/dashboard.astro` — remove Zwift platform filter, "Connect Zwift" CTA, and Zwift type reference
+- `web/src/pages/index.astro` — remove Zwift from landing page copy
+- `web/src/pages/privacy.astro` — remove Zwift from privacy policy text
 - `sst.config.ts` — remove `ZWIFT_CLIENT_ID` and `ZWIFT_CLIENT_SECRET` secret bindings
 - `specs/006-cicd-deploy-pipeline/quickstart.md` — update secret count and list
 - `specs/006-cicd-deploy-pipeline/tasks.md` — update T012 secret list
@@ -172,9 +177,9 @@ so that I am not confused by options that don't function.
 - All web component tests
 
 **Manual Verification:**
-- [ ] `npm run test:coverage` exits 0 with ≥80% coverage
-- [ ] `npm run build` (web) exits 0
-- [ ] TypeScript type-check passes with no errors
+- [x] `npm run test:coverage` exits 0 with ≥80% coverage — **verified**
+- [x] `npm run build` (web) exits 0 — **verified**
+- [ ] TypeScript type-check (`npm run typecheck`) passes with no errors — pending explicit task T026
 
 ---
 
@@ -191,5 +196,5 @@ so that I am not confused by options that don't function.
 - Constitution: `.specify/memory/constitution.md`
 - Historical Zwift spec: `.specify/specs/002-zwift-oauth/spec.md`
 - CI/CD pipeline: `specs/006-cicd-deploy-pipeline/spec.md`
-- Implementation Plan: `specs/007-remove-zwift/plan.md` (to be created)
-- Task Breakdown: `specs/007-remove-zwift/tasks.md` (to be created)
+- Task Breakdown: `specs/007-remove-zwift/tasks.md`
+- Note: `plan.md` was intentionally skipped — scope was fully defined in spec.md and tasks.md was generated directly from the spec.

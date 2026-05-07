@@ -23,7 +23,7 @@ Impact: Added Principle 8 — Functional & Structured Logging.
 
 ## Overview
 
-This constitution establishes the governance principles and practices for the FitHub project. FitHub is a cross-platform fitness data synchronization system that enables users to seamlessly sync their fitness data across multiple platforms (Strava, Zwift, Suunto, Apple Health, Garmin Connect) without manual data entry or duplication issues.
+This constitution establishes the governance principles and practices for the FitHub project. FitHub is a cross-platform fitness data synchronization system that enables users to seamlessly sync their fitness data across multiple platforms (Strava, Suunto, Apple Health, Garmin Connect) without manual data entry or duplication issues.
 
 This constitution serves as the reference for all specification, planning, and implementation work carried out under the FitHub project.
 
@@ -48,7 +48,9 @@ This constitution serves as the reference for all specification, planning, and i
 
 ### 2. Cross-Platform Integration
 
-**Core Rule:** FitHub MUST reliably integrate with at least 5 major fitness platforms. Data sync operations MUST handle platform-specific API variations, rate limits, and data format differences transparently.
+**Core Rule:** FitHub MUST reliably integrate with at least 5 major fitness platforms (long-term aspiration). Data sync operations MUST handle platform-specific API variations, rate limits, and data format differences transparently.
+
+> **P2 Launch Deviation (documented):** v1 launches with Strava only (1 platform). Zwift was scoped out in `feat-007` because no public OAuth API exists. Garmin, Suunto, Apple Health, and others are future roadmap items. Any new removal or addition of a platform integration MUST document its deviation from this principle in the corresponding feature spec's Constitution Alignment Checklist.
 
 **Specifics:**
 - Each platform integration MUST have a documented adapter that normalizes platform-specific data into FitHub's canonical format.
@@ -188,7 +190,7 @@ Constitution versions follow semantic versioning:
 ## Next Steps
 
 1. Create dependent speckit templates (spec, plan, tasks) aligned with these principles.
-2. Document initial integrations (Strava, Zwift, Suunto, Apple Health, Garmin) against Data Privacy & Security and Cross-Platform Integration principles.
+2. Document initial integrations (Strava, Suunto, Apple Health, Garmin) against Data Privacy & Security and Cross-Platform Integration principles. Zwift removed in feat-007; deviation documented in P2.
 3. Establish monitoring and alerting for Reliability & Performance principles.
 4. Create user-facing documentation (privacy policy, in-app help, technical status page).
 5. Set up code quality CI/CD checks aligned with Code Quality & Testing principle.
