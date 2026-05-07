@@ -49,39 +49,44 @@
 
 ## User Authentication (FitHub Identity)
 
-**Decision:** OpenAuth.js (SST Auth) — self-hosted on Cloudflare Workers
+**Decision:** OpenAuth.js — self-hosted on Cloudflare Workers using `issuer()` with `CodeProvider` (email magic-link)
 
 **Rationale:**
-- First-class Cloudflare Workers support (built-in Workers KV adapter)
+- First-class Cloudflare Workers support via `CloudflareStorage` (KV adapter)
 - Made by the SST team — native to our stack, single SST deploy
 - Self-hosted: zero per-user cost, full data sovereignty (Constitution §1)
-- Standards-based OAuth 2.0 + PKCE; works with `flutter_appauth` (already a dep)
-- TypeScript-native; types shareable with `api` Worker for JWT claims
+- Standards-based OAuth 2.0 + PKCE
+- TypeScript-native; subjects schema shareable with `api` Worker for JWT claims
 - Open source — no vendor lock-in
+- Auto-manages signing key rotation via KV — no external `OPENAUTH_SIGNING_KEY` needed
 
-**Topology:**
-- Deployed as 4th logical Worker (`auth.fithub.app`) in the same SST app as `api`, `scheduler`, `worker`
-- Workers KV namespace `AUTH_KV` for refresh tokens, OTP codes, auth codes
-- D1 `users` table as canonical user store (same database as activities)
-- JWT (RS256) issued by `auth`, validated by `api` via JWKS endpoint
+**Topology (feat-008):**
+- Auth Worker deployed as `sst.cloudflare.Worker("Auth")` with `url: true`; URL exposed as `Resource.Auth.url`
+- `CloudflareStorage({ namespace: env.AuthKv })` — uses existing `AuthKv` KV namespace
+- D1 `users` table as canonical user store (same `FithubDb` as activities)
+- JWTs signed by auto-managed keys in KV; validated by `api` Worker via `client.verify(subjects, token)`
+- Service binding: `api` Worker calls `auth` Worker directly via `env.Auth.fetch` (zero-latency)
+- Shared subjects module: `packages/functions/src/shared/subjects.ts` — imported by all three consumers
 
-**Providers (MVP):**
-- Sign in with Apple (cross-platform via OAuth; Apple-ID web flow)
-- Sign in with Google
-- Email magic-link (universal fallback; no password storage)
+**Providers (v1 — feat-008):**
+- Email magic-link only — `CodeProvider` + `CodeUI`; `value.claims.email` in `success` callback
+- `sendCode`: Resend SDK on production; `console.log` fallback on other stages
 
 **Deferred to v1.1+:**
-- Password authentication (only if user demand emerges)
+- Sign in with Apple (requires privacy policy; deferred)
+- Sign in with Google (deferred)
+- Password authentication
 - MFA / TOTP
 - Account deletion self-service flow
 
 **Web Integration:**
-- Astro frontend redirects unauthenticated users to `https://auth.fithub.app/authorize?...`
-- PKCE flow returns JWT; stored in `HttpOnly`, `Secure`, `SameSite=Lax` cookie set by the auth Worker on the apex/eTLD+1 shared with the web app
-- Magic-link callback handled by an Astro route or a dedicated Worker route on `auth.fithub.app/callback`
+- Astro frontend redirects unauthenticated users to `{Resource.Auth.url}/authorize?...`
+- PKCE flow; callback handled by `/auth/callback` Astro page which calls `client.exchange()`
+- Tokens stored in `HttpOnly`, `Secure`, `SameSite=Strict` cookies (access: 24h; refresh: 30d)
+- `client.verify(subjects, token)` in web middleware for server-side validation
 
 **Email Delivery:**
-- Provider TBD in `005-web-frontend` (or a future auth feature spec): Resend, Postmark, or SES via worker-mailer
+- **Resend** — confirmed as the email delivery provider. API key via `EMAIL_PROVIDER_KEY` SST Secret.
 
 **Alternatives Considered:**
 - **Clerk** — polished UI widgets and mature SDKs, but per-user pricing and US-hosted

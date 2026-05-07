@@ -92,7 +92,7 @@ so that others using my device cannot access my FitHub account.
 ### ✅ Performance & Real-Time Sync
 - [x] Sign-in round-trip completes in under 2 seconds under normal load
 - [x] Session token verification adds less than 10ms to any API request
-- **Notes:** Token verification is a local cryptographic operation; no network call required per API request.
+- **Notes:** Token verification uses cached JWKS keys after the first warm request; the initial JWKS fetch goes through the Cloudflare service binding (sub-millisecond, no public egress). Subsequent verifications are local cryptographic operations with no network call.
 
 ### ✅ Code Quality & Testing
 - [x] Unit tests cover token issuance, expiry, and revocation logic
@@ -110,6 +110,7 @@ so that others using my device cannot access my FitHub account.
 - [x] No tokens, email content, or magic-link codes appear in logs
 - [x] `error`-level logs carry typed error codes
 - **Notes:** `userId` is the only PII allowed in structured logs. Email address must never appear in logs.
+- **Known Deviation:** The constitution MUST requires audit-relevant events to be persisted via an audit log module. No such module currently exists in the FitHub codebase. For feat-008, auth events (`auth.signup`, `auth.signin`, `auth.signout`) are emitted as operational structured logs only. Persistence to a dedicated audit sink is deferred to a future cross-feature implementation.
 
 ---
 
@@ -147,7 +148,7 @@ so that others using my device cannot access my FitHub account.
 - **Frontend client:** `@openauthjs/openauth/client` — used in the Astro web app to initiate the auth flow, exchange authorization codes for tokens, refresh tokens, and verify token validity. The client is initialised with `issuer: AUTH_WORKER_URL` (for browser redirects) and `fetch: env.Auth.fetch` (for server-to-server calls via service binding). Tokens are stored in plain HttpOnly + SameSite=Strict cookies — no additional cookie-signing secret is needed since the tokens are already JWTs signed by the auth worker.
 - **Provider:** `CodeProvider` with `CodeUI` from OpenAuth.js — implements the email magic-link (OTP code) flow. The `success` callback receives `value.claims.email` for the code provider. The code is delivered by email rather than displayed in the UI; on non-production stages, it falls back to console logging.
 - **Token subjects:** A `user` subject is defined with `{ id: string }` — the FitHub internal user ID is embedded in the access token. The subject schema is defined once in a shared module (`packages/functions/src/shared/subjects.ts`) and imported by the auth worker, the API worker, and the web frontend.
-- **Token TTL:** Access tokens: 5–24 hours (TBD at implementation). Refresh tokens: 30 days.
+- **Token TTL:** Access tokens: **1 hour** (resolved — see A1 remediation). Short-lived access tokens minimise the window of a stolen token; the silent refresh in `web/src/middleware.ts` keeps sessions transparent to users. Refresh tokens: 30 days.
 - **Security/Compliance:**
   - Magic-link OTP codes expire in 15 minutes and are single-use (enforced by OpenAuth.js)
   - Sessions expire after 30 days; refresh tokens allow transparent session extension
@@ -176,7 +177,7 @@ Browser / Web App                    Auth Worker                  API Worker
        │                               Verify OTP (single-use, 15min TTL)
        │                               Look up or create user in FithubDb
        │                               Issue access + refresh tokens
-       │                               (signed with OPENAUTH_SIGNING_KEY)
+       │                               (signed with auto-managed keys in AuthKv)
        │◄───────────────────────────   Set HttpOnly session cookie
        │
        │  3. Subsequent API requests
@@ -199,7 +200,7 @@ Browser / Web App                    Auth Worker                  API Worker
 ```
 
 **Component Responsibilities:**
-- **Auth Worker** (`packages/functions/src/auth/`): OpenAuth.js `issuer` with `CodeProvider`, `CloudflareStorage` backed by `AuthKv`, user lookup/creation against `FithubDb`, token signing via `OPENAUTH_SIGNING_KEY`. Exposes the standard OAuth 2.0 endpoints plus `/.well-known/jwks.json`.
+- **Auth Worker** (`packages/functions/src/auth/`): OpenAuth.js `issuer` with `CodeProvider`, `CloudflareStorage` backed by `AuthKv`, user lookup/creation against `FithubDb`. Token signing is handled automatically by OpenAuth.js using keys it generates and rotates in `AuthKv` — no external signing key is used or needed. Exposes the standard OAuth 2.0 endpoints plus `/.well-known/jwks.json`.
 - **Web Frontend** (`web/src/`): Uses `@openauthjs/openauth/client` to drive the auth flow — `authorize()` to start sign-in, `exchange()` to trade the callback code for tokens, `refresh()` to keep sessions alive, and `verify()` to check token validity on protected pages. The client points to `AUTH_WORKER_URL`.
 - **API Worker** (`packages/functions/src/api/`): The existing custom JWKS-fetching middleware (`middleware/auth.ts`) should be **replaced** with `@openauthjs/openauth/client`. The client is initialized with `AUTH_WORKER_URL` as the issuer; `client.verify(subjects, token)` handles JWKS discovery and caching automatically. No `OPENAUTH_JWKS_URL` env var is needed.
 
