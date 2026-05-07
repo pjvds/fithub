@@ -47,7 +47,7 @@ This guide documents the one-time setup steps required before the CI/CD pipeline
 | `TOKEN_MASTER_KEY` | 32-byte random hex string (e.g. `openssl rand -hex 32`) |
 | `STRAVA_CLIENT_SECRET` | From [Strava API settings](https://www.strava.com/settings/api) |
 | `STRAVA_CLIENT_ID` | From Strava API settings |
-| `REDIRECT_BASE_URL` | `https://app.fithub.app` (or your custom domain) |
+| `REDIRECT_BASE_URL` | `https://app.fithub.space` (or your custom domain) |
 | `OPENAUTH_SIGNING_KEY` | 32-byte random hex string |
 
 > **Deferred:** `APPLE_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, and `EMAIL_PROVIDER_KEY` are not required until the auth worker is implemented. They will be added back when that feature is built.

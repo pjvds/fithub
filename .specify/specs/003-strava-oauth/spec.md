@@ -146,7 +146,7 @@ so that my activity history stays current without manual intervention.
 
 **FR4: Incremental Sync (Webhook + Reconciliation)**
 - Backend registers a Strava webhook subscription per user on connection (Strava Push Subscription API)
-- Webhook events received at `worker.fithub.app/webhooks/strava` are processed within 30 seconds (matches `000-backend-foundation` AC-3)
+- Webhook events received at `worker.fithub.space/webhooks/strava` are processed within 30 seconds (matches `000-backend-foundation` AC-3)
 - A 60-minute reconciliation poll (Cloudflare Cron via `scheduler` Worker) covers any webhook gaps and detects modified/deleted activities
 - Mobile app does not poll Strava directly; it receives updates via backend push (see `000-backend-foundation` AC-6)
 

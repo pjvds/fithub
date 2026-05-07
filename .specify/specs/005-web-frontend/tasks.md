@@ -45,7 +45,7 @@
 
 - [x] W001 Initialize `web/` workspace member — create `web/package.json` (name: `@fithub/web`), `web/tsconfig.json` (extends root `tsconfig.base.json`), `web/astro.config.mjs` with `@astrojs/cloudflare` adapter, `web/.eslintrc.cjs` extending the shared root ESLint config
 - [x] W002 [P] Configure Tailwind CSS v4 inside `web/` — install `tailwindcss`, create `web/tailwind.config.mjs` and `web/src/styles/global.css`; confirm Tailwind utility classes resolve inside Astro `.astro` components
-- [x] W003 Add `sst.cloudflare.StaticSite` resource in `sst.config.ts` pointing at `web/` build output; bind the `app.fithub.app` custom domain; verify `sst deploy --stage staging` publishes the static site to Cloudflare Pages
+- [x] W003 Add `sst.cloudflare.StaticSite` resource in `sst.config.ts` pointing at `web/` build output; bind the `app.fithub.space` custom domain; verify `sst deploy --stage staging` publishes the static site to Cloudflare Pages
 - [x] W004 [P] Add CI steps to `.github/workflows/ci.yml` — `astro check`, `tsc --noEmit`, `eslint web/src`, and `vitest run --project web` run on every PR targeting `main`
 
 ---
@@ -69,7 +69,7 @@
 
 > **Goal:** All non-public routes are auth-gated; unauthenticated visitors are redirected to the Auth Worker and returned to their originally requested URL after sign-in.
 >
-> **Independent test:** Navigate to `/dashboard` without a session cookie → `302` to `auth.fithub.app/authorize?redirect_uri=...`; submit valid session → land on `/dashboard`.
+> **Independent test:** Navigate to `/dashboard` without a session cookie → `302` to `auth.fithub.space/authorize?redirect_uri=...`; submit valid session → land on `/dashboard`.
 
 - [x] W011 [US1] Implement Astro middleware at `web/src/middleware.ts` — check `fithub_session` HttpOnly cookie; redirect unauthenticated requests to `${AUTH_WORKER_URL}/authorize?redirect_uri=<encoded-original-url>`; mint a `correlationId` (UUID v4) and attach to `Astro.locals` for the request lifecycle
 - [x] W012 [US1] Implement `web/src/lib/session.ts` — `getSession(cookies): SessionUser | null` decodes the session cookie server-side; define `SessionUser` interface (add to `packages/core/src/types/api.ts` if not present); export `requireSession` helper that calls `getSession` and throws a redirect if null
@@ -131,7 +131,7 @@
 - [x] W034 Add sync failure notification banner at `web/src/components/SyncStatusBanner.astro` — polls `GET /api/sync/history?limit=1` every 60 s on the dashboard using `setInterval`; shows an amber banner when latest job is `partial` or `failed`; stop polling on component unmount or when `document.visibilityState === 'hidden'` (use `clearInterval` in cleanup); no WebSockets / SSE (AC resolution from spec.md Q2)
 - [x] W035 Write Playwright E2E tests in `web/e2e/` — configure `playwright.config.ts` with three browser projects: `chromium`, `firefox`, `webkit`; happy path: sign in → see dashboard → trigger sync → navigate to activity history → see at least one activity; settings: request export → confirmation visible; account deletion: modal requires "DELETE" → redirect to logged-out page; run all three browsers in CI
 - [x] W036 [P] Configure Lighthouse CI and JS bundle size gate — create `lighthouserc.cjs` at repo root; run `lhci autorun` against deployed preview URL (`PAGES_DEPLOYMENT_URL`); assert Performance ≥90 and Best Practices ≥90 on `/dashboard`; add `size-limit` config in `web/package.json` with a ≤200KB budget on the Astro-generated JS for the dashboard route; add both as required checks in `.github/workflows/ci.yml`
-- [x] W037 [P] Security hardening — set `Content-Security-Policy` header in `web/src/middleware.ts`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.fithub.app`; verify no third-party scripts load on authenticated routes (Lighthouse Best Practices audit)
+- [x] W037 [P] Security hardening — set `Content-Security-Policy` header in `web/src/middleware.ts`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.fithub.space`; verify no third-party scripts load on authenticated routes (Lighthouse Best Practices audit)
 - [x] W038 Final verification — run full suite: `vitest run --coverage`, `astro check`, `tsc --noEmit`, `eslint web/src`, Playwright E2E, Lighthouse CI; confirm coverage ≥80% on `web/src/lib/api-client.ts` and `web/src/lib/formatters.ts`; confirm all ACs pass
 
 ---

@@ -109,7 +109,7 @@
 **Topology:**
 - Single Astro project at `web/` (npm workspace member)
 - Server routes (`web/src/pages/api/*.ts`) run as Cloudflare Workers when needed; static routes export to HTML
-- Custom domain: `app.fithub.app` (web app), `auth.fithub.app` (OpenAuth Worker)
+- Custom domain: `app.fithub.space` (web app), `auth.fithub.space` (OpenAuth Worker)
 - Authenticated session: `HttpOnly` cookie issued by `auth` Worker; `api` Worker validates JWT via JWKS
 
 **Dependencies:**
@@ -219,7 +219,7 @@ This **supersedes** the earlier "local-first, no backend until v2+" and the May 
 
 **OAuth Flows (Updated):**
 - ✅ PKCE for cloud platforms (Zwift, Strava)
-- ✅ OAuth flow initiated from the web app (`/connect/{platform}` redirects to `auth.fithub.app/oauth/{platform}/start`); backend exchanges code for tokens; client receives only a connection confirmation
+- ✅ OAuth flow initiated from the web app (`/connect/{platform}` redirects to `auth.fithub.space/oauth/{platform}/start`); backend exchanges code for tokens; client receives only a connection confirmation
 - ✅ Standard browser redirect (no popup, no in-app webview)
 
 **Encryption at Rest (Backend):**

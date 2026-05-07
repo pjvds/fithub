@@ -1,6 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
-import { getSession } from "@/lib/session";
 import { randomUUID } from "node:crypto";
+import { createAuthClient } from "@/lib/auth-client";
 
 // Routes that are accessible without authentication
 const PUBLIC_PATHS = new Set(["/", "/auth/callback", "/auth/logout", "/privacy", "/deleted"]);
@@ -17,32 +17,77 @@ const CSP = [
   "form-action 'self'",
 ].join("; ");
 
+const SESSION_COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  path: "/",
+};
+
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, locals, cookies, redirect } = context;
 
-  // Mint a correlation ID for this request lifecycle
   locals.correlationId = randomUUID();
 
   const url = new URL(request.url);
 
-  // Allow public paths through unconditionally
   if (PUBLIC_PATHS.has(url.pathname)) {
     const response = await next();
     response.headers.set("Content-Security-Policy", CSP);
     return response;
   }
 
-  // Check for a valid session
-  const session = getSession(cookies);
+  const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "";
+  const client = createAuthClient({ issuer: authWorkerUrl });
 
-  if (!session) {
-    const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "";
-    const redirectUri = encodeURIComponent(request.url);
-    return redirect(`${authWorkerUrl}/authorize?redirect_uri=${redirectUri}`, 302);
+  const accessToken = cookies.get("access_token")?.value;
+
+  if (!accessToken) {
+    const callbackUrl = new URL("/auth/callback", url).toString();
+    return redirect(
+      `${authWorkerUrl}/authorize?client_id=web&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(url.pathname + url.search)}`,
+      302,
+    );
   }
 
-  // Attach session to locals for downstream pages and layouts
-  locals.user = session;
+  const result = await client.verify(
+    (await import("@/lib/auth-client")).subjects,
+    accessToken,
+    {
+      refresh: cookies.get("refresh_token")?.value,
+      issuer: authWorkerUrl,
+      clientID: "web",
+    },
+  );
+
+  if (result.err) {
+    // Token invalid and refresh (if present) also failed — redirect to login
+    cookies.delete("access_token", { path: "/" });
+    cookies.delete("refresh_token", { path: "/" });
+    const callbackUrl = new URL("/auth/callback", url).toString();
+    return redirect(
+      `${authWorkerUrl}/authorize?client_id=web&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(url.pathname + url.search)}`,
+      302,
+    );
+  }
+
+  // Silently rotate tokens if OpenAuth refreshed them
+  if (result.tokens) {
+    const secure = url.protocol === "https:";
+    cookies.set("access_token", result.tokens.access, {
+      ...SESSION_COOKIE_OPTS,
+      secure,
+      maxAge: 15 * 60,
+    });
+    if (result.tokens.refresh) {
+      cookies.set("refresh_token", result.tokens.refresh, {
+        ...SESSION_COOKIE_OPTS,
+        secure,
+        maxAge: 30 * 24 * 60 * 60,
+      });
+    }
+  }
+
+  locals.user = { userId: result.subject.properties.id, email: null };
 
   const response = await next();
   response.headers.set("Content-Security-Policy", CSP);

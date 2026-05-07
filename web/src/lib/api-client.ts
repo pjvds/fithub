@@ -8,7 +8,7 @@
  * - Returns typed response objects per endpoint
  *
  * Usage:
- *   const client = createApiClient({ baseUrl: "https://api.fithub.app", correlationId });
+ *   const client = createApiClient({ baseUrl: "https://api.fithub.space", correlationId });
  *   const { connections } = await client.listConnections();
  */
 

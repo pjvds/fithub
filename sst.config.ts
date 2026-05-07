@@ -16,7 +16,7 @@ export default $config({
     const stravaClientSecret = new sst.Secret("STRAVA_CLIENT_SECRET");
     const stravaClientId = new sst.Secret("STRAVA_CLIENT_ID");
     const redirectBaseUrl = new sst.Secret("REDIRECT_BASE_URL");
-    const openauthSigningKey = new sst.Secret("OPENAUTH_SIGNING_KEY");
+    const emailProviderKey = new sst.Secret("EMAIL_PROVIDER_KEY");
 
     const db = new sst.cloudflare.D1("FithubDb");
 
@@ -39,18 +39,29 @@ export default $config({
       dlq: retryJobsDlq.arn,
     });
 
+    // Auth worker — OpenAuth.js issuer with CloudflareStorage
+    const auth = new sst.cloudflare.Worker("Auth", {
+      handler: "packages/functions/src/auth/index.ts",
+      link: [authKv, db, emailProviderKey],
+      url: true,
+    });
+
     const apiSecrets = [
       tokenMasterKey,
       stravaClientSecret,
       stravaClientId,
       redirectBaseUrl,
-      openauthSigningKey,
     ];
 
     const api = new sst.cloudflare.Worker("Api", {
       handler: "packages/functions/src/api/index.ts",
       url: true,
-      link: [db, feedCache, authKv, blobStore, eventBus, syncJobs, retryJobs, ...apiSecrets],
+      link: [db, feedCache, authKv, blobStore, eventBus, syncJobs, retryJobs, auth, ...apiSecrets],
+      transform: {
+        worker: {
+          serviceBindings: [{ name: "Auth", service: auth.name }],
+        },
+      },
     });
 
     const outboxRelay = new sst.cloudflare.Worker("OutboxRelay", {
@@ -73,16 +84,19 @@ export default $config({
     });
 
     // Web frontend — Astro app with SSR via Cloudflare Pages Functions
-    // Deployed to app.fithub.app; requires `npm run build` in web/ first.
+    // Deployed to app.fithub.space; requires `npm run build` in web/ first.
     const web = new sst.cloudflare.StaticSite("Web", {
       path: "web",
       build: {
         command: "npm run build",
         output: "dist",
       },
-      domain: "app.fithub.app",
+      domain: "app.fithub.space",
+      link: [auth],
       environment: {
-        AUTH_WORKER_URL: "https://auth.fithub.app",
+        // AUTH_WORKER_URL uses the dynamically-assigned SST worker URL per stage.
+        // Custom domain (auth.fithub.space) can be set as a Cloudflare route post-deploy.
+        AUTH_WORKER_URL: auth.url,
         API_BASE_URL: api.url,
       },
     });
@@ -90,6 +104,7 @@ export default $config({
     return {
       apiUrl: api.url,
       webUrl: web.url,
+      authUrl: auth.url,
       dbId: db.id,
       blobStore: blobStore.name,
       outboxRelay: outboxRelay.id,

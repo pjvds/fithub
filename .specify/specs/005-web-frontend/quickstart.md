@@ -177,7 +177,7 @@ fithub/
 Export `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` before running.
 
 **Login redirects loop / 401 on `/api/me`**
-The Auth Worker at `auth.fithub.app` does not exist in local dev yet. Ensure `OPENAUTH_SIGNING_KEY` is set and the auth Worker is running. In MSW mode this is not required.
+The Auth Worker at `auth.fithub.space` does not exist in local dev yet. Ensure `OPENAUTH_SIGNING_KEY` is set and the auth Worker is running. In MSW mode this is not required.
 
 **Lighthouse score < 90 on first run**
 Often caused by large images or unoptimised fonts in dev builds. Run `pnpm build && pnpm lhci:local` (production build) — dev builds deliberately skip some optimisations.

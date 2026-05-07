@@ -39,12 +39,12 @@
 
 ## R3: Session Strategy
 
-**Decision:** `HttpOnly`, `Secure`, `SameSite=Lax` cookie set by the Auth Worker on the apex domain (`fithub.app`)
+**Decision:** `HttpOnly`, `Secure`, `SameSite=Lax` cookie set by the Auth Worker on the apex domain (`fithub.space`)
 
 **Rationale:**
 - `HttpOnly` prevents XSS from reading the session token; no JS token management needed
 - `SameSite=Lax` protects against CSRF for state-mutating requests while allowing navigation redirects
-- Apex-scoped cookie allows `app.fithub.app` and `auth.fithub.app` to share the session without cross-origin fetch complexity
+- Apex-scoped cookie allows `app.fithub.space` and `auth.fithub.space` to share the session without cross-origin fetch complexity
 - Zero fitness tokens ever touch `localStorage` or `sessionStorage` — hard requirement per Constitution §1
 
 **Alternatives Considered:**
@@ -131,7 +131,7 @@
 
 ## R9: SST Integration
 
-**Decision:** `sst.cloudflare.StaticSite` resource in `sst.config.ts` pointing to `web/` build output, attached to `app.fithub.app`
+**Decision:** `sst.cloudflare.StaticSite` resource in `sst.config.ts` pointing to `web/` build output, attached to `app.fithub.space`
 
 **Rationale:**
 - Colocating the web site in the SST project gives it typed resource bindings and a single deploy pipeline

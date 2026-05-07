@@ -241,13 +241,13 @@ The web app is one workspace member alongside `packages/core` and `packages/func
 
 - [ ] Dependency 1: `000-backend-foundation` provides the production-ready API endpoints listed under AC-2 through AC-7
 - [ ] Dependency 2: `006-zwift-oauth-web` and `007-strava-oauth-web` (future specs) define the OAuth redirect contracts the web app links into
-- [ ] Dependency 3: Domain DNS / Cloudflare configuration must allow a shared apex with `app.fithub.app` and `auth.fithub.app` for cookie-scoped sessions
+- [ ] Dependency 3: Domain DNS / Cloudflare configuration must allow a shared apex with `app.fithub.space` and `auth.fithub.space` for cookie-scoped sessions
 - [ ] Blocker (none yet): the web app is largely independent and can progress against mocked APIs while backend matures
 
 **Risk Assessment:**
 
 - **Risk 1:** Backend API contracts shift after the web work begins. **Mitigation:** Keep all I/O typed via `@fithub/core`; rely on TypeScript breaks at compile time as the change-detection mechanism.
-- **Risk 2:** Authentication redirect loops between `app.fithub.app` and `auth.fithub.app`. **Mitigation:** Document and test the redirect contract as part of the auth gate's unit/E2E suite; share fixtures across web and Auth Worker.
+- **Risk 2:** Authentication redirect loops between `app.fithub.space` and `auth.fithub.space`. **Mitigation:** Document and test the redirect contract as part of the auth gate's unit/E2E suite; share fixtures across web and Auth Worker.
 - **Risk 3:** Performance budget violated by adding an island per dashboard widget. **Mitigation:** Lighthouse CI in the deploy pipeline; PRs that regress the budget fail CI.
 
 ---
@@ -316,7 +316,7 @@ The web app is one workspace member alongside `packages/core` and `packages/func
 - Web is the **only** user-facing client in v1; mobile is postponed and Apple Health is postponed with it.
 - Astro is the chosen framework (decided 2026-05-06); the choice supersedes any prior Flutter Web evaluation.
 - Authentication is delegated to a backend OpenAuth.js Worker; the web client never holds platform OAuth tokens.
-- Domain layout: `app.fithub.app` for the web client, `auth.fithub.app` for the Auth Worker, sharing an apex-scoped session cookie.
+- Domain layout: `app.fithub.space` for the web client, `auth.fithub.space` for the Auth Worker, sharing an apex-scoped session cookie.
 - Tailwind CSS will be used for styling unless a strong reason emerges during planning to switch.
 
 ---

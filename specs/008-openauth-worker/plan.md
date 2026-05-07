@@ -40,8 +40,8 @@ Deploy a dedicated Cloudflare Worker running an OpenAuth.js `issuer()` with `Cod
 - **Fallback:** If `transform` proves unreliable, fall back to HTTP calls — the `fetch` override is optional in `createClient()`. Document as a known compromise.
 
 **Decision 3: `AUTH_WORKER_URL` from `Resource.Auth.url` instead of hardcoded**
-- **Choice:** Add `link: [auth]` to the web frontend SST declaration; set `AUTH_WORKER_URL: auth.url` (dynamically). Remove the hardcoded `https://auth.fithub.app`.
-- **Rationale:** The hardcoded URL breaks non-production stages. SST's `url: true` on the auth worker exposes the generated URL as `Resource.Auth.url`. Custom domain (`auth.fithub.app`) can still be set as a Cloudflare route after deployment, but the SST-generated URL is the stage-safe default.
+- **Choice:** Add `link: [auth]` to the web frontend SST declaration; set `AUTH_WORKER_URL: auth.url` (dynamically). Remove the hardcoded `https://auth.fithub.space`.
+- **Rationale:** The hardcoded URL breaks non-production stages. SST's `url: true` on the auth worker exposes the generated URL as `Resource.Auth.url`. Custom domain (`auth.fithub.space`) can still be set as a Cloudflare route after deployment, but the SST-generated URL is the stage-safe default.
 - **Constitution Alignment:** Reliability & Uptime — auth should work in all stages.
 - **Impact:** Requires web frontend to `link: [auth]`. `auth.url` is injected into `environment`.
 

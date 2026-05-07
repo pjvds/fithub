@@ -53,10 +53,10 @@ describe("getSession", () => {
   });
 
   it("decodes userId from sub claim", () => {
-    const jwt = makeJwt({ sub: "user-abc", email: "rider@fithub.app" });
+    const jwt = makeJwt({ sub: "user-abc", email: "rider@fithub.space" });
     const cookies = makeCookies(jwt);
     const session = getSession(cookies);
-    expect(session).toMatchObject({ userId: "user-abc", email: "rider@fithub.app" });
+    expect(session).toMatchObject({ userId: "user-abc", email: "rider@fithub.space" });
   });
 
   it("sets email to null when claim is absent", () => {
@@ -78,8 +78,8 @@ describe("getSession", () => {
 // ---------------------------------------------------------------------------
 
 describe("requireSession", () => {
-  const AUTH_URL = "https://auth.fithub.app";
-  const REQUEST_URL = "https://app.fithub.app/dashboard";
+  const AUTH_URL = "https://auth.fithub.space";
+  const REQUEST_URL = "https://app.fithub.space/dashboard";
 
   it("returns session when cookie is valid", () => {
     const jwt = makeJwt({ sub: "user-1", email: "u@test.com" });
@@ -110,13 +110,13 @@ describe("requireSession", () => {
     const redirectFn = vi.fn().mockReturnValue(mockRedirectResponse);
 
     try {
-      requireSession(cookies, redirectFn, AUTH_URL, "https://app.fithub.app/dashboard?tab=sync");
+      requireSession(cookies, redirectFn, AUTH_URL, "https://app.fithub.space/dashboard?tab=sync");
     } catch {
       // expected — redirect throws
     }
 
     const [url] = redirectFn.mock.calls[0] as [string];
-    expect(url).toContain("redirect_uri=https%3A%2F%2Fapp.fithub.app%2Fdashboard%3Ftab%3Dsync");
+    expect(url).toContain("redirect_uri=https%3A%2F%2Fapp.fithub.space%2Fdashboard%3Ftab%3Dsync");
   });
 
   it("does not include redirect_uri when requestUrl is omitted", () => {

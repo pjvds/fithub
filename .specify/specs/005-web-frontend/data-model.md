@@ -8,7 +8,7 @@
 
 | Store | Technology | Purpose |
 |---|---|---|
-| Session | `HttpOnly` cookie on `fithub.app` | Auth session token (opaque to JS) |
+| Session | `HttpOnly` cookie on `fithub.space` | Auth session token (opaque to JS) |
 | URL state | Search params / path | Current page, filters, pagination cursors |
 | Client cache | `Map` in API client module | In-flight request dedup (no persistent cache) |
 | Error queue | JS memory → `POST /api/errors` | Buffered client-side error ingestion |
@@ -21,12 +21,12 @@ No `localStorage`, `sessionStorage`, or IndexedDB. All persistent state lives se
 
 ### `fithub_session`
 
-Set by the Auth Worker (`auth.fithub.app`) after a successful OAuth callback.
+Set by the Auth Worker (`auth.fithub.space`) after a successful OAuth callback.
 
 | Attribute | Value |
 |---|---|
 | Name | `fithub_session` |
-| Domain | `.fithub.app` (apex) |
+| Domain | `.fithub.space` (apex) |
 | Path | `/` |
 | HttpOnly | ✅ |
 | Secure | ✅ |

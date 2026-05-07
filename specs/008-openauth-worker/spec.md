@@ -290,7 +290,7 @@ Browser / Web App                    Auth Worker                  API Worker
   - **Resolution:** Via both a Cloudflare **service binding** and the issuer URL — these are complementary. The service binding (`env.Auth.fetch`) routes all server-to-server calls (verify, exchange, JWKS) directly with zero latency. The issuer URL (`AUTH_WORKER_URL`) is still required for generating browser redirect URLs — the user's browser cannot use a service binding. Confirmed by the official example: `createClient({ issuer: env.OPENAUTH_ISSUER, fetch: (input, init) => env.Auth.fetch(input, init) })`.
 
 - **Q6:** How is `AUTH_WORKER_URL` made stage-aware instead of hardcoded?
-  - **Resolution:** Using `url: true` on the SST Worker declaration exposes the URL as `Resource.Auth.url`. The web frontend's `AUTH_WORKER_URL` env var should reference this via `link: [auth]` rather than being hardcoded to `https://auth.fithub.app`. The custom domain can still be set separately; `Resource.Auth.url` is the fallback.
+  - **Resolution:** Using `url: true` on the SST Worker declaration exposes the URL as `Resource.Auth.url`. The web frontend's `AUTH_WORKER_URL` env var should reference this via `link: [auth]` rather than being hardcoded to `https://auth.fithub.space`. The custom domain can still be set separately; `Resource.Auth.url` is the fallback.
 
 ---
 

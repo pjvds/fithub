@@ -5,9 +5,11 @@ import CookieBanner from "../components/CookieBanner.astro";
 interface Props {
   title: string;
   description?: string;
+  showNav?: boolean;
 }
 
-const { title, description = "FitHub — unified fitness data sync platform" } = Astro.props;
+const { title, description = "FitHub — unified fitness data sync platform", showNav = false } = Astro.props;
+const user = Astro.locals.user;
 ---
 
 <!doctype html>
@@ -20,6 +22,17 @@ const { title, description = "FitHub — unified fitness data sync platform" } =
     <title>{title} — FitHub</title>
   </head>
   <body class="min-h-screen bg-gray-50 text-gray-900">
+    {showNav && user && (
+      <header class="border-b bg-white px-4 py-3 flex items-center justify-between">
+        <a href="/dashboard" class="font-semibold text-blue-600">FitHub</a>
+        <nav class="flex items-center gap-4 text-sm">
+          <a href="/dashboard" class="hover:underline">Dashboard</a>
+          <a href="/sync-history" class="hover:underline">Sync History</a>
+          <a href="/settings" class="hover:underline">Settings</a>
+          <a href="/auth/logout" class="text-gray-500 hover:underline">Sign out</a>
+        </nav>
+      </header>
+    )}
     <slot />
     <CookieBanner />
   </body>

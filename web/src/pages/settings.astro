@@ -13,7 +13,7 @@ import type { UserProfile } from "@fithub/core";
 requireSession(Astro.cookies, Astro.redirect, import.meta.env.AUTH_WORKER_URL, Astro.request.url);
 
 const correlationId: string = Astro.locals.correlationId;
-const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.app";
+const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
 
 let profile: UserProfile | null = null;
 let fetchError: string | null = null;

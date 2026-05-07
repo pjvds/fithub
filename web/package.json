@@ -18,6 +18,7 @@
     "@astrojs/cloudflare": "^12.0.0",
     "@astrojs/react": "^4.0.0",
     "@fithub/core": "*",
+    "@openauthjs/openauth": "^0.4.0",
     "astro": "^5.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

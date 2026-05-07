@@ -6,7 +6,7 @@ The auth worker exposes standard OAuth 2.0 / PKCE endpoints provided by OpenAuth
 
 ## Standard OAuth 2.0 Endpoints
 
-All endpoints are served from `AUTH_WORKER_URL` (e.g., `https://auth.fithub.app` or the SST-generated URL).
+All endpoints are served from `AUTH_WORKER_URL` (e.g., `https://auth.fithub.space` or the SST-generated URL).
 
 ### `GET /authorize`
 Initiates the sign-in flow. CodeProvider displays the email entry form (CodeUI).
@@ -71,10 +71,10 @@ OAuth 2.0 server metadata (RFC 8414). Used by `client.createClient()` to discove
 **Response:**
 ```json
 {
-  "issuer": "https://auth.fithub.app",
-  "authorization_endpoint": "https://auth.fithub.app/authorize",
-  "token_endpoint": "https://auth.fithub.app/token",
-  "jwks_uri": "https://auth.fithub.app/.well-known/jwks.json",
+  "issuer": "https://auth.fithub.space",
+  "authorization_endpoint": "https://auth.fithub.space/authorize",
+  "token_endpoint": "https://auth.fithub.space/token",
+  "jwks_uri": "https://auth.fithub.space/.well-known/jwks.json",
   "response_types_supported": ["code"],
   "code_challenge_methods_supported": ["S256"]
 }

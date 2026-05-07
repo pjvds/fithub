@@ -268,7 +268,7 @@ Events NOT emitted (internal): `token.refreshed`, `sync_job.retrying`, `activity
 
 - **Astro App (`web/`)** — Static-first; islands hydrate the auth gate, dashboard, sync history, manual sync button, and settings.
 - **API Client** — Typed `fetch` wrappers over `/api/*` using shared Zod schemas from `@fithub/core`.
-- **Auth Gate** — Redirects unauthenticated users to `auth.fithub.app`; reads session via `HttpOnly` cookie.
+- **Auth Gate** — Redirects unauthenticated users to `auth.fithub.space`; reads session via `HttpOnly` cookie.
 - **Refresh Strategy** — On page load and on focus; manual "Sync now" button calls `POST /api/sync/trigger`.
 
 ### Future Mobile Components (postponed)

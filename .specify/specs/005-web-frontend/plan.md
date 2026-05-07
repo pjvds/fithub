@@ -59,12 +59,12 @@ Execution is sequenced so the scaffold and auth gate ship first (unblocking all 
 
 ### Decision 2: Session via HttpOnly Cookie (No localStorage)
 
-**Choice:** After the Auth Worker issues a JWT, the web app receives it via a redirect and stores it in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie scoped to the apex domain (`fithub.app`). All subsequent API calls carry the cookie automatically; no JS token storage.
+**Choice:** After the Auth Worker issues a JWT, the web app receives it via a redirect and stores it in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie scoped to the apex domain (`fithub.space`). All subsequent API calls carry the cookie automatically; no JS token storage.
 
 **Rationale:**
 - `HttpOnly` prevents XSS from reading the token
 - `SameSite=Lax` mitigates CSRF without requiring a separate CSRF token for safe-method requests
-- Apex-scoped cookie allows `app.fithub.app` (web) and `auth.fithub.app` (Auth Worker) to share the session without cross-domain fetch complexity
+- Apex-scoped cookie allows `app.fithub.space` (web) and `auth.fithub.space` (Auth Worker) to share the session without cross-domain fetch complexity
 - Zero fitness data or tokens ever touch `localStorage` or `sessionStorage`
 
 **Constitution Alignment:**
@@ -184,7 +184,7 @@ web/                         ← new workspace member
   tsconfig.json              ← extends root base
 ```
 
-**New SST Resource:** `sst.cloudflare.StaticSite` in `sst.config.ts` pointing to `web/` build output, attached to `app.fithub.app`.
+**New SST Resource:** `sst.cloudflare.StaticSite` in `sst.config.ts` pointing to `web/` build output, attached to `app.fithub.space`.
 
 **Modified components in backend:**
 - `packages/core/src/types/api.ts` — export stable response types used by the web API client
@@ -210,7 +210,7 @@ All web server-side code MUST:
 
 Set up `web/` workspace, Astro project, Tailwind, TypeScript config extending root, and SST `StaticSite` resource. Confirm `sst dev` serves the web app locally and `sst deploy` publishes to Cloudflare Pages.
 
-**Deliverable:** Empty Astro app accessible at `app.fithub.app` in staging.
+**Deliverable:** Empty Astro app accessible at `app.fithub.space` in staging.
 
 ---
 

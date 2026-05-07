@@ -9,12 +9,12 @@ info:
     by the browser and verified server-side. No Bearer token in JS.
 
     Base URLs:
-      - Production API: https://api.fithub.app
-      - Auth Worker: https://auth.fithub.app
+      - Production API: https://api.fithub.space
+      - Auth Worker: https://auth.fithub.space
       - Local (sst dev): http://localhost:8787 (api), http://localhost:8788 (auth)
 
 servers:
-  - url: https://api.fithub.app
+  - url: https://api.fithub.space
     description: Production
   - url: http://localhost:8787
     description: Local development (sst dev)
@@ -25,7 +25,7 @@ components:
       type: apiKey
       in: cookie
       name: fithub_session
-      description: HttpOnly session cookie set by auth.fithub.app; forwarded automatically by browser
+      description: HttpOnly session cookie set by auth.fithub.space; forwarded automatically by browser
 
   schemas:
 
@@ -513,12 +513,12 @@ paths:
       operationId: authLogin
       summary: Initiate login flow (Auth Worker)
       description: |
-        Redirect target for unauthenticated users. Handled by `auth.fithub.app`
+        Redirect target for unauthenticated users. Handled by `auth.fithub.space`
         (not the API Worker). Redirects to the Zwift or Strava OAuth provider.
         Defined here for documentation completeness only.
       tags: [auth]
       servers:
-        - url: https://auth.fithub.app
+        - url: https://auth.fithub.space
       security: []
       parameters:
         - name: provider

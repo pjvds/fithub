@@ -1,0 +1,61 @@
+---
+/**
+ * Auth callback page — exchanged an auth code for access + refresh tokens,
+ * stores them as HttpOnly cookies, and redirects to the original destination.
+ *
+ * The OpenAuth.js issuer redirects here after a successful code-flow with:
+ *   ?code=<authz_code>&state=<original_redirect_uri>
+ */
+import { createAuthClient } from "@/lib/auth-client";
+
+const { searchParams } = new URL(Astro.request.url);
+const code = searchParams.get("code");
+const redirectUri = searchParams.get("state") ?? "/dashboard";
+
+if (!code) {
+  return Astro.redirect("/?error=missing_code", 302);
+}
+
+const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "";
+const callbackUrl = new URL("/auth/callback", new URL(Astro.request.url).origin).toString();
+
+const client = createAuthClient({ issuer: authWorkerUrl });
+
+const exchanged = await client.exchange(code, callbackUrl);
+
+if (exchanged.err) {
+  console.error("[callback] code exchange failed", exchanged.err);
+  return Astro.redirect("/?error=exchange_failed", 302);
+}
+
+const { access, refresh } = exchanged.tokens;
+
+const secure = new URL(Astro.request.url).protocol === "https:";
+const cookieOpts = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure,
+  path: "/",
+};
+
+// access_token: short-lived (15 min)
+Astro.cookies.set("access_token", access, {
+  ...cookieOpts,
+  maxAge: 15 * 60,
+});
+
+// refresh_token: long-lived (30 days)
+if (refresh) {
+  Astro.cookies.set("refresh_token", refresh, {
+    ...cookieOpts,
+    maxAge: 30 * 24 * 60 * 60,
+  });
+}
+
+// Sanitise redirect target to prevent open-redirect: must be same-origin path
+const safe = redirectUri.startsWith("/") && !redirectUri.startsWith("//")
+  ? redirectUri
+  : "/dashboard";
+
+return Astro.redirect(safe, 302);
+---

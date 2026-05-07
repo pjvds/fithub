@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { initErrorReporter } from "./error-reporter.js";
 
-const BASE_URL = "https://api.fithub.app";
+const BASE_URL = "https://api.fithub.space";
 const CORRELATION_ID = "test-correlation";
 
 function setupReporter(overrideFetch?: typeof globalThis.fetch) {
@@ -22,7 +22,7 @@ describe("initErrorReporter — window.onerror", () => {
     vi.stubGlobal("window", {
       onerror: null,
       addEventListener: vi.fn(),
-      location: { href: "https://app.fithub.app/dashboard" },
+      location: { href: "https://app.fithub.space/dashboard" },
     });
     vi.stubGlobal("navigator", { userAgent: "test-agent" });
   });
@@ -35,7 +35,7 @@ describe("initErrorReporter — window.onerror", () => {
     const mockFetch = setupReporter();
 
     const error = new Error("something went wrong");
-    window.onerror!("message", "https://app.fithub.app/dashboard", 1, 1, error);
+    window.onerror!("message", "https://app.fithub.space/dashboard", 1, 1, error);
 
     await vi.runAllTimersAsync().catch(() => {});
     await Promise.resolve();
@@ -44,7 +44,7 @@ describe("initErrorReporter — window.onerror", () => {
     const body = capturedBody(mockFetch);
     expect(body).toMatchObject({
       message: "something went wrong",
-      source: "https://app.fithub.app/dashboard",
+      source: "https://app.fithub.space/dashboard",
     });
   });
 
@@ -75,7 +75,7 @@ describe("initErrorReporter — unhandledrejection", () => {
     vi.stubGlobal("window", {
       onerror: null,
       addEventListener: addEventListenerSpy,
-      location: { href: "https://app.fithub.app/" },
+      location: { href: "https://app.fithub.space/" },
     });
     vi.stubGlobal("navigator", { userAgent: "test-agent" });
   });
@@ -121,7 +121,7 @@ describe("initErrorReporter — PII stripping", () => {
     vi.stubGlobal("window", {
       onerror: null,
       addEventListener: vi.fn(),
-      location: { href: "https://app.fithub.app/" },
+      location: { href: "https://app.fithub.space/" },
     });
     vi.stubGlobal("navigator", { userAgent: "test-agent" });
   });

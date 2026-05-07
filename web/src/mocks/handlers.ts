@@ -25,7 +25,7 @@ import type {
 
 const MOCK_USER: AuthUser = {
   userId: "mock-user-001",
-  email: "rider@fithub.app",
+  email: "rider@fithub.space",
 };
 
 const MOCK_CONNECTIONS: ConnectionsResponse = {
@@ -97,7 +97,7 @@ const MOCK_ACTIVITIES: ActivitiesResponse = {
 
 const MOCK_PROFILE: UserProfile = {
   user_id: "mock-user-001",
-  email: "rider@fithub.app",
+  email: "rider@fithub.space",
   display_name: "Test Rider",
   created_at: 1_700_000_000,
   connections: MOCK_CONNECTIONS.connections,

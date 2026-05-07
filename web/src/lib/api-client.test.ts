@@ -21,7 +21,7 @@ function makeFetch(responses: Response[]): typeof globalThis.fetch {
 }
 
 const CORRELATION_ID = "test-correlation-id";
-const BASE_URL = "https://api.fithub.app";
+const BASE_URL = "https://api.fithub.space";
 
 // ---------------------------------------------------------------------------
 // Success path
@@ -251,7 +251,7 @@ describe("createApiClient — endpoint coverage", () => {
     const fetch = makeFetch([makeResponse(200, {})]);
     const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
 
-    await client.reportError({ message: "test error", url: "https://app.fithub.app/" });
+    await client.reportError({ message: "test error", url: "https://app.fithub.space/" });
 
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect(url).toBe(`${BASE_URL}/api/errors`);

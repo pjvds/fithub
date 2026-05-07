@@ -1,0 +1,11 @@
+---
+/**
+ * Sign-out page — clears the session cookies and redirects to the home page.
+ */
+const cookieOpts = { path: "/" };
+
+Astro.cookies.delete("access_token", cookieOpts);
+Astro.cookies.delete("refresh_token", cookieOpts);
+
+return Astro.redirect("/", 302);
+---

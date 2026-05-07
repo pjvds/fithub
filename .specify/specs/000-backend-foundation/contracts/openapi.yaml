@@ -8,7 +8,7 @@ info:
     All endpoints except webhooks require a valid JWT Bearer token (issued by OpenAuth.js / SST Auth).
 
 servers:
-  - url: https://api.fithub.app
+  - url: https://api.fithub.space
     description: Production
   - url: http://localhost:8787
     description: Local development (sst dev)

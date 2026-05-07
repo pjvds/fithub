@@ -34,18 +34,18 @@
 ```
 
          Web App (Astro on Cloudflare Pages)              │
-         app.fithub.app                                   │
+         app.fithub.space                                   │
 
                                                           │
- API Worker (Hono)          api.fithub.app              │
+ API Worker (Hono)          api.fithub.space              │
   - GET /api/me, /connections, /activities               │
   - POST /sync/trigger, /errors                          │
   - DELETE /user                                         │
                                                           │
- Auth Worker (OpenAuth.js)  auth.fithub.app             │
+ Auth Worker (OpenAuth.js)  auth.fithub.space             │
   - OAuth PKCE flow (Zwift, Strava)                      │
   - JWT issuance + JWKS endpoint                         │
-  - HttpOnly session cookie (apex .fithub.app)           │
+  - HttpOnly session cookie (apex .fithub.space)           │
                                                           │
  Sync Durable Object        (per-user)                  │
   - Sync cursor, locks, in-flight job state              │

@@ -209,7 +209,7 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
 - Single deployment unit; consistent versioning
 - SST manages cross-resource references and bindings
 - Per-environment config (`dev`, `staging`, `production`) via SST stages
-- `auth` Worker hosted at separate subdomain (`auth.fithub.app`) for clean OAuth redirect URIs and CSP isolation
+- `auth` Worker hosted at separate subdomain (`auth.fithub.space`) for clean OAuth redirect URIs and CSP isolation
 
 **Constitution Alignment:**
 - §6 Code Quality — Shared code reduces duplication
@@ -247,7 +247,7 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
 
 ### Decision 9: OpenAuth.js (SST Auth) for FitHub User Authentication
 
-**Choice:** Self-host OpenAuth.js as a 4th Worker (`auth.fithub.app`). Providers: Sign in with Apple, Sign in with Google, and email magic-link. JWT-based sessions. Workers KV for issuer state (refresh tokens, OTP codes, auth codes). D1 `users` table as canonical user store.
+**Choice:** Self-host OpenAuth.js as a 4th Worker (`auth.fithub.space`). Providers: Sign in with Apple, Sign in with Google, and email magic-link. JWT-based sessions. Workers KV for issuer state (refresh tokens, OTP codes, auth codes). D1 `users` table as canonical user store.
 
 **Rationale:**
 - Native Cloudflare Workers support (built-in KV adapter); same stack, single SST deploy
@@ -270,8 +270,8 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
 
 - **Impact:**
 - Adds 4th Worker bundle and a Workers KV namespace (`AUTH_KV`)
-- v1 web flow: Astro pages redirect to `https://auth.fithub.app/authorize?...` via standard browser PKCE; receive JWT via redirect; store in a secure HttpOnly cookie
-- *(v2+ mobile flow)* `flutter_appauth` opens `https://auth.fithub.app/authorize?...` in `ASWebAuthenticationSession` (iOS) / `CustomTabs` (Android); receives JWT via PKCE; stores in Keychain/Keystore
+- v1 web flow: Astro pages redirect to `https://auth.fithub.space/authorize?...` via standard browser PKCE; receive JWT via redirect; store in a secure HttpOnly cookie
+- *(v2+ mobile flow)* `flutter_appauth` opens `https://auth.fithub.space/authorize?...` in `ASWebAuthenticationSession` (iOS) / `CustomTabs` (Android); receives JWT via PKCE; stores in Keychain/Keystore
 - `api` Worker validates JWT (RS256) via OpenAuth's JWKS endpoint
 - Magic-link delivery requires email provider (Resend recommended; ~$20/mo at expected volume)
 - `001-user-authentication` feature spec details: provider configuration, account linking, JWT claim shape, email templates, deep-link handling
@@ -345,7 +345,7 @@ Seven phases sequenced (see Implementation Breakdown below for the canonical pha
        │  ┌────────┴───────────┐          │                    │          │
        │  │  auth Worker       │          │                    │          │
        │  │  (OpenAuth.js)     │          │                    │          │
-       │  │  auth.fithub.app   │          │                    │          │
+       │  │  auth.fithub.space   │          │                    │          │
        │  │ - /authorize       │          │                    │          │
        │  │ - /token           │          │                    │          │
        │  │ - /.well-known/    │          │                    │          │
@@ -837,7 +837,7 @@ Phase 1 → Phase 2 → Phase 3 → Phase 5 → Phase 8
 - [ ] Strava OAuth app credentials + webhook subscription registration
 - [ ] Apple Developer account + APNs auth key (.p8) + key ID + team ID
 - [ ] Firebase project + service account JSON for FCM
-- [ ] Domain name for backend (e.g., `api.fithub.app`) routed to Workers
+- [ ] Domain name for backend (e.g., `api.fithub.space`) routed to Workers
 - [ ] Decision on FitHub user authentication strategy (`001-user-authentication` feature) — can be stubbed initially
 
 **Blockers (must resolve before Phase 1):**

@@ -61,7 +61,7 @@ sendCode: async (email, code) => {
   }
   const resend = new Resend(Resource.EMAIL_PROVIDER_KEY.value);
   await resend.emails.send({
-    from: "FitHub <noreply@fithub.app>",
+    from: "FitHub <noreply@fithub.space>",
     to: email,
     subject: "Your FitHub sign-in code",
     html: `<p>Your sign-in code: <strong>${code}</strong> (expires in 15 minutes)</p>`,
