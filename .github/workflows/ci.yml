@@ -85,10 +85,11 @@ jobs:
       - name: Verify required secrets are set
         run: |
           missing=()
-          [ -z "$CLOUDFLARE_API_TOKEN" ] && missing+=("CLOUDFLARE_API_TOKEN")
-          [ -z "$TOKEN_MASTER_KEY" ]     && missing+=("TOKEN_MASTER_KEY")
-          [ -z "$STRAVA_CLIENT_SECRET" ] && missing+=("STRAVA_CLIENT_SECRET")
-          [ -z "$EMAIL_PROVIDER_KEY" ]   && missing+=("EMAIL_PROVIDER_KEY")
+          [ -z "$CLOUDFLARE_API_TOKEN" ]   && missing+=("CLOUDFLARE_API_TOKEN")
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ]  && missing+=("CLOUDFLARE_ACCOUNT_ID")
+          [ -z "$TOKEN_MASTER_KEY" ]        && missing+=("TOKEN_MASTER_KEY")
+          [ -z "$STRAVA_CLIENT_SECRET" ]    && missing+=("STRAVA_CLIENT_SECRET")
+          [ -z "$EMAIL_PROVIDER_KEY" ]      && missing+=("EMAIL_PROVIDER_KEY")
           if [ ${#missing[@]} -gt 0 ]; then
             echo "❌ Missing required GitHub Environment secrets:"
             printf '  - %s\n' "${missing[@]}"
@@ -98,6 +99,7 @@ jobs:
           echo "✅ All required secrets are present."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TOKEN_MASTER_KEY: ${{ secrets.TOKEN_MASTER_KEY }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           EMAIL_PROVIDER_KEY: ${{ secrets.EMAIL_PROVIDER_KEY }}
@@ -105,6 +107,7 @@ jobs:
         run: npx sst install
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Seed SST app secrets
         run: |
           npx sst secret set TOKEN_MASTER_KEY "$TOKEN_MASTER_KEY" --stage dev --print-logs
@@ -114,6 +117,7 @@ jobs:
           npx sst secret set EMAIL_PROVIDER_KEY "$EMAIL_PROVIDER_KEY" --stage dev --print-logs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TOKEN_MASTER_KEY: ${{ secrets.TOKEN_MASTER_KEY }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           EMAIL_PROVIDER_KEY: ${{ secrets.EMAIL_PROVIDER_KEY }}
@@ -121,3 +125,4 @@ jobs:
         run: npx sst deploy --stage dev
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
