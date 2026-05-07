@@ -12,6 +12,9 @@ if (session) {
 
 const authWorkerUrl =
   import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space";
+
+const callbackUrl = new URL("/auth/callback", Astro.url).toString();
+const authorizeUrl = `${authWorkerUrl}/authorize?client_id=web&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent("/dashboard")}`;
 ---
 
 <Layout title="Sign In">
@@ -24,7 +27,7 @@ const authWorkerUrl =
         </p>
       </div>
       <a
-        href={`${authWorkerUrl}/authorize`}
+        href={authorizeUrl}
         class="inline-flex w-full items-center justify-center rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 transition-colors"
       >
         Sign in to FitHub
