@@ -1,8 +1,15 @@
 export const LogEvent = {
+  // Auth — token verification
   authTokenAccepted: "auth.token.accepted",
   authTokenRejected: "auth.token.rejected",
-  authJwksFetched: "auth.jwks.fetched",
-  authJwksFetchFailed: "auth.jwks.fetch_failed",
+
+  // Auth — magic-link / code flow
+  authMagicLinkSent: "auth.magic_link.sent",
+  authMagicLinkSendFailed: "auth.magic_link.send_failed",
+  authMagicLinkExpired: "auth.magic_link.expired",
+  authSignup: "auth.signup",
+  authSignin: "auth.signin",
+  authSignout: "auth.signout",
 
   apiRequestStarted: "api.request.started",
   apiRequestCompleted: "api.request.completed",
@@ -15,13 +22,6 @@ export const LogEvent = {
   oauthRefreshStarted: "oauth.refresh.started",
   oauthRefreshSucceeded: "oauth.refresh.succeeded",
   oauthRefreshFailed: "oauth.refresh.failed",
-
-  syncJobStarted: "sync.job.started",
-  syncJobCompleted: "sync.job.completed",
-  syncJobFailed: "sync.job.failed",
-
-  webhookReceived: "webhook.received",
-  webhookSignatureFailed: "webhook.signature.failed",
 
   connectionCreated: "connection.created",
   connectionRevoked: "connection.revoked",

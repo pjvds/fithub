@@ -133,7 +133,7 @@ async function verifyHmac(
 
     const expected = signatureHeader.replace(/^sha256=/, "");
     const sigBytes = hexToBytes(expected);
-    return crypto.subtle.verify("HMAC", key, sigBytes, body);
+    return crypto.subtle.verify("HMAC", key, sigBytes as unknown as ArrayBuffer, body);
   } catch {
     return false;
   }

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { Resource } from "sst";
+import { createClient } from "@openauthjs/openauth/client";
 import { ErrorCode, LogEvent } from "@fithub/core";
 import { authMiddleware, type AuthVariables } from "./middleware/auth.js";
 import { correlationMiddleware, type CorrelationVariables } from "./middleware/correlation.js";
@@ -11,7 +12,9 @@ import { createSyncRouter } from "./routes/sync.js";
 import { createDedupRouter } from "./routes/dedup.js";
 
 interface AppEnv {
-  Bindings: Record<string, never>;
+  Bindings: {
+    Auth: { fetch: typeof fetch };
+  };
   Variables: AuthVariables & CorrelationVariables & LoggerVariables;
 }
 
@@ -48,8 +51,27 @@ app.route("/api/webhooks", createWebhooksRouter());
 
 const authedRoutes = new Hono<AppEnv>();
 
-const jwksUrl = (globalThis as { OPENAUTH_JWKS_URL?: string }).OPENAUTH_JWKS_URL ?? "https://auth.fithub.app/.well-known/jwks.json";
-authedRoutes.use("*", authMiddleware({ jwksUrl }));
+authedRoutes.use("*", async (c, next) => {
+  // Build an OpenAuth client that routes through the Auth service binding.
+  // The service binding (env.Auth) routes calls within Cloudflare's network
+  // at sub-millisecond latency — no public egress, no HTTP round-trip.
+  // X-Request-ID is propagated so cross-service traces can be correlated.
+  const authBinding = c.env.Auth;
+  const requestId = c.req.header("x-request-id");
+
+  const client = createClient({
+    clientID: "api",
+    issuer: (Resource as unknown as { Auth?: { url?: string } }).Auth?.url ?? "",
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers((init as RequestInit | undefined)?.headers);
+      if (requestId) headers.set("x-request-id", requestId);
+      return authBinding.fetch(input as Parameters<typeof fetch>[0], { ...(init ?? {}), headers });
+    },
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (authMiddleware({ client }) as (c: any, next: any) => Promise<Response>)(c, next);
+});
 
 authedRoutes.get("/me", (c) => c.json({ userId: c.get("userId") }));
 authedRoutes.route("/connections", connectionsRouter);

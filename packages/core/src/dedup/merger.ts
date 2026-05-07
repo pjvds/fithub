@@ -58,7 +58,7 @@ export async function mergeActivities(
       source: "fithub/dedup",
       type: "activity.merged",
       subject: canonicalId,
-      correlationId,
+      ...(correlationId !== undefined ? { correlationId } : {}),
       data: {
         userId: canonical.userId,
         canonicalActivityId: canonicalId,

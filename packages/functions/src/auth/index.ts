@@ -23,7 +23,7 @@ function buildIssuer(env: Env) {
 
   return issuer({
     subjects,
-    storage: CloudflareStorage({ namespace: env.AuthKv }),
+    storage: CloudflareStorage({ namespace: env.AuthKv as never }),
 
     providers: {
       email: CodeProvider({
