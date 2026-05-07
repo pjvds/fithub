@@ -21,7 +21,10 @@ let fetchError: string | null = null;
 
 try {
   const client = createApiClient({ baseUrl: apiBaseUrl, correlationId });
-  data = await client.getSyncHistory({ cursor, limit: 50 });
+  data = await client.getSyncHistory({
+    ...(cursor ? { cursor } : {}),
+    limit: 50,
+  });
 } catch {
   fetchError = "Unable to load sync history. Please refresh.";
 }

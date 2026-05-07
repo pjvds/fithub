@@ -132,7 +132,7 @@ export function createApiClient(options: ApiClientOptions) {
         method: "POST",
         headers: baseHeaders,
         credentials: "include",
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       },
       fetchFn,
     );

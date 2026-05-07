@@ -1,17 +1,21 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    "composite": false,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "noEmit": true,
+    "types": ["vitest/globals"],
     "paths": {
       "@fithub/core": ["../packages/core/src/index.ts"],
-      "@fithub/core/*": ["../packages/core/src/*"]
+      "@fithub/core/*": ["../packages/core/src/*"],
+      "@/*": ["./src/*"]
     }
   },
   "include": [
     "src/**/*",
+    "../packages/core/src/**/*",
     "vitest.config.ts",
     "vitest.setup.ts",
     ".astro/types.d.ts"

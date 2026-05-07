@@ -53,9 +53,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     (await import("@/lib/auth-client")).subjects,
     accessToken,
     {
-      refresh: cookies.get("refresh_token")?.value,
+      ...(cookies.get("refresh_token")?.value ? { refresh: cookies.get("refresh_token")!.value } : {}),
       issuer: authWorkerUrl,
-      clientID: "web",
+      audience: "web",
     },
   );
 

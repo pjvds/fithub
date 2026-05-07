@@ -251,7 +251,13 @@ describe("createApiClient — endpoint coverage", () => {
     const fetch = makeFetch([makeResponse(200, {})]);
     const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
 
-    await client.reportError({ message: "test error", url: "https://app.fithub.space/" });
+    await client.reportError({
+      code: "CLIENT_ERROR",
+      message: "test error",
+      context: { url: "https://app.fithub.space/" },
+      occurred_at: 0,
+      correlation_id: null,
+    });
 
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect(url).toBe(`${BASE_URL}/api/errors`);

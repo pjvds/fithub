@@ -58,7 +58,7 @@ export function getSession(cookies: AstroCookies): Omit<SessionUser, "correlatio
  */
 export function requireSession(
   cookies: AstroCookies,
-  redirectFn: (url: string, status?: number) => Response,
+  redirectFn: (url: string, status?: 301 | 302 | 303 | 307 | 308 | 300 | 304) => Response,
   authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "",
   requestUrl?: string,
 ): Omit<SessionUser, "correlationId"> {

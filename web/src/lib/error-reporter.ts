@@ -33,10 +33,15 @@ export function initErrorReporter({ apiBaseUrl, correlationId }: ReporterOptions
 
   function sendReport(message: string, source?: string): void {
     const report = {
+      code: "CLIENT_ERROR",
       message: stripPii(message),
-      source: source ? stripPii(source) : undefined,
-      url: stripPii(window.location.href),
-      user_agent: navigator.userAgent,
+      context: {
+        url: stripPii(window.location.href),
+        user_agent: navigator.userAgent,
+        ...(source ? { source: stripPii(source) } : {}),
+      },
+      occurred_at: Date.now(),
+      correlation_id: null,
     };
     // Fire-and-forget — don't await, don't surface errors to UI
     client.reportError(report).catch(() => {});
