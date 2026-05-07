@@ -1,0 +1,532 @@
+openapi: "3.1.0"
+info:
+  title: FitHub Web Client — API Contracts
+  version: "0.1.0"
+  description: |
+    The set of API endpoints consumed by the `005-web-frontend` Astro app.
+    All authenticated endpoints require the `fithub_session` HttpOnly cookie
+    (set by the Auth Worker) — the session cookie is forwarded automatically
+    by the browser and verified server-side. No Bearer token in JS.
+
+    Base URLs:
+      - Production API: https://api.fithub.app
+      - Auth Worker: https://auth.fithub.app
+      - Local (sst dev): http://localhost:8787 (api), http://localhost:8788 (auth)
+
+servers:
+  - url: https://api.fithub.app
+    description: Production
+  - url: http://localhost:8787
+    description: Local development (sst dev)
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: fithub_session
+      description: HttpOnly session cookie set by auth.fithub.app; forwarded automatically by browser
+
+  schemas:
+
+    AuthUser:
+      type: object
+      description: Authenticated user identity
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          nullable: true
+          description: May be null for Apple private relay users
+      required: [userId]
+
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [zwift, strava, apple_health]
+        status:
+          type: string
+          enum: [active, requires_reauth, disconnected]
+        connected_at:
+          type: integer
+          description: Epoch seconds
+        last_synced_at:
+          type: integer
+          nullable: true
+          description: Epoch seconds
+        last_error:
+          type: string
+          nullable: true
+      required: [id, platform, status, connected_at]
+
+    ConnectionsResponse:
+      type: object
+      properties:
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Connection"
+      required: [connections]
+
+    SyncJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [zwift, strava]
+        status:
+          type: string
+          enum: [pending, success, partial, failed]
+        started_at:
+          type: integer
+          description: Epoch seconds
+        ended_at:
+          type: integer
+          nullable: true
+          description: Epoch seconds
+        activities_synced:
+          type: integer
+        error_message:
+          type: string
+          nullable: true
+      required: [id, platform, status, started_at, activities_synced]
+
+    SyncHistoryResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncJob"
+        next_cursor:
+          type: string
+          nullable: true
+      required: [jobs]
+
+    CanonicalActivity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [running, cycling, swimming, hiking, walking, other]
+        started_at:
+          type: integer
+          description: Epoch seconds
+        ended_at:
+          type: integer
+          description: Epoch seconds
+        duration_s:
+          type: integer
+        distance_m:
+          type: number
+          nullable: true
+        calories_kcal:
+          type: number
+          nullable: true
+        avg_heart_rate:
+          type: integer
+          nullable: true
+        primary_source:
+          type: string
+          enum: [zwift, strava, apple_health]
+        dedup_group_id:
+          type: string
+          nullable: true
+          description: Present when this activity is part of a deduplication group
+      required: [id, type, started_at, ended_at, duration_s, primary_source]
+
+    ActivitiesResponse:
+      type: object
+      properties:
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanonicalActivity"
+        next_cursor:
+          type: string
+          nullable: true
+      required: [activities]
+
+    ManualSyncResponse:
+      type: object
+      description: Returned immediately when a manual sync is enqueued
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [zwift, strava]
+        status:
+          type: string
+          enum: [pending]
+        started_at:
+          type: integer
+          description: Epoch seconds
+      required: [job_id, platform, status, started_at]
+
+    UserProfile:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          nullable: true
+        created_at:
+          type: integer
+          description: Epoch seconds
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Connection"
+      required: [user_id, created_at, connections]
+
+    ErrorReport:
+      type: object
+      description: Client-side error ingestion payload
+      properties:
+        code:
+          type: string
+          description: Typed ErrorCode enum value; e.g. API_CLIENT_ERROR, RENDER_ERROR
+        message:
+          type: string
+        context:
+          type: object
+          nullable: true
+          additionalProperties: true
+        occurred_at:
+          type: integer
+          description: Epoch milliseconds (client clock)
+        correlation_id:
+          type: string
+          nullable: true
+      required: [code, message, occurred_at]
+
+    ApiError:
+      type: object
+      properties:
+        status:
+          type: integer
+        code:
+          type: string
+        message:
+          type: string
+      required: [status, code, message]
+
+security:
+  - sessionCookie: []
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # Authentication
+  # ---------------------------------------------------------------------------
+
+  /api/me:
+    get:
+      operationId: getMe
+      summary: Get authenticated user identity
+      description: |
+        Returns the authenticated user's identity. Used by Astro layouts to verify
+        session validity and render user-specific content. 401 triggers a redirect
+        to the login flow.
+      tags: [auth]
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated; web app should redirect to /auth/login
+
+  # ---------------------------------------------------------------------------
+  # Connections
+  # ---------------------------------------------------------------------------
+
+  /api/connections:
+    get:
+      operationId: listConnections
+      summary: List all platform connections for the authenticated user
+      description: |
+        Returns the current connection status for each supported platform.
+        Drives the Connections section of the dashboard.
+      tags: [connections]
+      responses:
+        "200":
+          description: Connection list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionsResponse"
+        "401":
+          description: Not authenticated
+
+  # ---------------------------------------------------------------------------
+  # Sync History
+  # ---------------------------------------------------------------------------
+
+  /api/sync/history:
+    get:
+      operationId: getSyncHistory
+      summary: Get paginated sync job history
+      description: |
+        Returns sync jobs for the authenticated user, newest first.
+        Used by the Sync History page and the dashboard sync status badge.
+      tags: [sync]
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pagination cursor from previous response
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: platform
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [zwift, strava]
+          description: Filter by platform
+      responses:
+        "200":
+          description: Sync history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncHistoryResponse"
+        "401":
+          description: Not authenticated
+
+  # ---------------------------------------------------------------------------
+  # Manual Sync Trigger
+  # ---------------------------------------------------------------------------
+
+  /api/sync/trigger:
+    post:
+      operationId: triggerSync
+      summary: Trigger a manual sync for a platform
+      description: |
+        Enqueues an on-demand sync job for the specified platform.
+        Returns immediately with status 'pending'; the caller polls
+        GET /api/sync/history to observe job completion.
+        Rate-limited to 1 manual sync per platform per 5 minutes.
+      tags: [sync]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platform:
+                  type: string
+                  enum: [zwift, strava]
+              required: [platform]
+      responses:
+        "202":
+          description: Sync job enqueued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualSyncResponse"
+        "400":
+          description: Invalid platform or connection not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not authenticated
+        "429":
+          description: Rate limit exceeded; try again after 5 minutes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # ---------------------------------------------------------------------------
+  # Activities
+  # ---------------------------------------------------------------------------
+
+  /api/activities:
+    get:
+      operationId: listActivities
+      summary: Get paginated canonical activity feed
+      description: |
+        Returns deduplicated canonical activities for the authenticated user,
+        newest first. Used by the Activity Feed on the dashboard.
+      tags: [activities]
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [running, cycling, swimming, hiking, walking, other]
+      responses:
+        "200":
+          description: Activity feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivitiesResponse"
+        "401":
+          description: Not authenticated
+
+  # ---------------------------------------------------------------------------
+  # User Account
+  # ---------------------------------------------------------------------------
+
+  /api/user/profile:
+    get:
+      operationId: getUserProfile
+      summary: Get user profile (settings page)
+      description: Returns user details and connection list for the Settings page.
+      tags: [user]
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Not authenticated
+
+  /api/user/export:
+    get:
+      operationId: exportUserData
+      summary: Export all user data (GDPR)
+      description: |
+        Triggers a data export. Returns a download URL or initiates an
+        async export job. Exact response shape TBD in spec amendment
+        (NEEDS CLARIFICATION in spec.md).
+      tags: [user]
+      responses:
+        "202":
+          description: Export initiated
+        "401":
+          description: Not authenticated
+
+  /api/user:
+    delete:
+      operationId: deleteUser
+      summary: Delete user account
+      description: |
+        Permanently deletes the user account and all associated data.
+        The Auth Worker invalidates the session cookie after deletion.
+        Requires explicit confirmation payload to prevent accidental deletion.
+      tags: [user]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm:
+                  type: string
+                  description: Must be "DELETE" to confirm
+              required: [confirm]
+      responses:
+        "204":
+          description: Account deleted; session cookie cleared
+        "400":
+          description: Confirmation value missing or incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not authenticated
+
+  # ---------------------------------------------------------------------------
+  # Error Ingest
+  # ---------------------------------------------------------------------------
+
+  /api/errors:
+    post:
+      operationId: reportError
+      summary: Ingest a client-side error report
+      description: |
+        Accepts a structured error report from the browser (unhandled exceptions,
+        API client failures, render errors). Server persists to structured log.
+        Fire-and-forget from the client; 202 on success.
+        This endpoint does NOT require session cookie; it accepts anonymous reports
+        so errors during unauthenticated flows are captured.
+      tags: [errors]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ErrorReport"
+      responses:
+        "202":
+          description: Error report accepted
+        "400":
+          description: Malformed payload
+
+  # ---------------------------------------------------------------------------
+  # Auth Worker Redirects (referenced, not implemented here)
+  # ---------------------------------------------------------------------------
+
+  /auth/login:
+    get:
+      operationId: authLogin
+      summary: Initiate login flow (Auth Worker)
+      description: |
+        Redirect target for unauthenticated users. Handled by `auth.fithub.app`
+        (not the API Worker). Redirects to the Zwift or Strava OAuth provider.
+        Defined here for documentation completeness only.
+      tags: [auth]
+      servers:
+        - url: https://auth.fithub.app
+      security: []
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [zwift, strava]
+      responses:
+        "302":
+          description: Redirect to OAuth provider

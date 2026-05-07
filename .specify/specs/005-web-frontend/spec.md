@@ -85,7 +85,7 @@ so that I retain control over my data without having to email support.
 - [ ] AC-3: Authenticated users can connect Zwift and/or Strava by clicking a "Connect" button that initiates the platform's OAuth flow via the backend Auth Worker; the dashboard reflects the new connection without manual page refresh after the redirect returns.
 - [ ] AC-4: Authenticated users can disconnect any connected platform from the dashboard; the platform shows as disconnected immediately after the action.
 - [ ] AC-5: A "Sync history" view lists the user's most recent sync jobs (at minimum the last 30 days or the last 50 jobs, whichever is smaller) with platform, status (success / partial / failed), start time, and a summary of new/merged activities.
-- [ ] AC-6: A "Manual sync" button on the dashboard triggers an immediate sync for one or all connected platforms; the UI shows a pending state and resolves to success/failure within a reasonable time.
+- [ ] AC-6: A "Manual sync" button on the dashboard triggers an immediate sync for one or all connected platforms; the UI shows a pending state within 1 second of the click and resolves to success or failure within 30 seconds (or shows a timeout error if the backend has not responded).
 - [ ] AC-7: An "Activity history" view lists recent canonical activities with date, type, distance/duration, and source badges showing which platforms contributed (e.g., "Zwift + Strava").
 - [ ] AC-8: A "Settings" page allows the user to: view their email/display name, request a data export, and initiate account deletion (with confirmation).
 - [ ] AC-9: All authenticated pages function on the latest two major versions of Chrome, Firefox, Safari, and Edge, on both desktop and mobile-browser viewports.

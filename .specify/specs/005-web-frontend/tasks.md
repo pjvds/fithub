@@ -1,6 +1,6 @@
 # Task Breakdown: Web Frontend (FitHub v1)
 
-> **Pivot note (2026-05-06):** Web is the v1 user-facing client. Native mobile (and therefore Apple Health + push notifications) is postponed. This task list covers only the web frontend; platform OAuth web flows (Zwift, Strava connect/disconnect) will be defined in future `006-*` / `007-*` features and linked from the dashboard.
+> **Pivot note (2026-05-06):** Web is the v1 user-facing client. Native mobile (and Apple Health) is postponed. Platform OAuth connect/disconnect flows will be defined in `006-zwift-oauth-web` / `007-strava-oauth-web`; this task list links to those flows from the dashboard but does not own the OAuth dance.
 
 ---
 
@@ -16,146 +16,180 @@
 
 **Status:** Draft
 
+**Total Tasks:** 38
+
 ---
 
 ## Legend
 
-- 🔐 Data Privacy & Security
-- 🔗 Cross-Platform Integration
-- 👤 User Experience & Simplicity
-- ✅ Reliability & Uptime
-- ⚡ Performance & Real-Time Sync
-- 🧪 Code Quality & Testing
-- 📢 Transparency & Communication
-- `[P]` — can be done in parallel with adjacent tasks
-- `[POSTPONED]` — deferred to mobile v2+
+- `[P]` — task is parallelizable with adjacent tasks (different files, no incomplete dependencies)
+- `[US1]` – [US4] — user story phase label (see spec.md user stories)
+- `[POSTPONED]` — deferred to mobile v2+ or a future spec
+
+**User Story Map:**
+
+| Label | User Story |
+|---|---|
+| US1 | As a fitness enthusiast, I want to log in on the web → Auth Gate (AC-1) |
+| US2 | As a Zwift/Strava user, I want a dashboard showing connection health → Dashboard (AC-2, AC-3, AC-4, AC-6) |
+| US3 | As a user, I want to browse sync history and activity history → Data Views (AC-5, AC-7) |
+| US4 | As a privacy-conscious user, I want to manage my data from Settings → Settings (AC-8, AC-10) |
 
 ---
 
 ## Phase 1: Scaffold & SST Wiring
 
-> **Goal:** `web/` workspace set up; Astro app running locally via `sst dev` and deployable to Cloudflare Pages via SST.
+> **Goal:** `web/` workspace set up; Astro app runs locally via `sst dev`; CI checks pass.
 >
-> **Independent test:** `sst dev` serves an Astro "hello world" page; `astro check` + ESLint + typecheck all pass in CI.
+> **Independent test:** `sst dev` serves an Astro "hello world" at `localhost:4321`; `astro check`, `tsc --noEmit`, and `eslint` all pass in CI.
 
-- [ ] W001 🧪 Add `web/` workspace member to the SST monorepo — create `web/package.json`, `web/tsconfig.json` (extends root `tsconfig.base.json`), `web/astro.config.mjs` with the Cloudflare Pages adapter, `web/.eslintrc.cjs` extending the shared root config
-- [ ] W002 [P] 🧪 Install and configure Tailwind CSS v4 inside `web/` — `tailwind.config.mjs`, `web/src/styles/global.css`; confirm Tailwind classes resolve in Astro components
-- [ ] W003 🧪 Add `sst.cloudflare.StaticSite` resource in `sst.config.ts` pointing at the `web/` build output; bind the `app.fithub.app` custom domain; verify `sst deploy --stage staging` publishes the page
-- [ ] W004 [P] 🧪 Add CI steps — `astro check`, `tsc --noEmit`, `eslint web/src`, and `vitest run --project web` — to the existing GitHub Actions workflow so they run on every PR
+- [x] W001 Initialize `web/` workspace member — create `web/package.json` (name: `@fithub/web`), `web/tsconfig.json` (extends root `tsconfig.base.json`), `web/astro.config.mjs` with `@astrojs/cloudflare` adapter, `web/.eslintrc.cjs` extending the shared root ESLint config
+- [x] W002 [P] Configure Tailwind CSS v4 inside `web/` — install `tailwindcss`, create `web/tailwind.config.mjs` and `web/src/styles/global.css`; confirm Tailwind utility classes resolve inside Astro `.astro` components
+- [x] W003 Add `sst.cloudflare.StaticSite` resource in `sst.config.ts` pointing at `web/` build output; bind the `app.fithub.app` custom domain; verify `sst deploy --stage staging` publishes the static site to Cloudflare Pages
+- [x] W004 [P] Add CI steps to `.github/workflows/ci.yml` — `astro check`, `tsc --noEmit`, `eslint web/src`, and `vitest run --project web` run on every PR targeting `main`
 
 ---
 
-## Phase 2: Auth Gate
+## Phase 2: Foundational
 
-> **Goal:** Any authenticated route redirects unauthenticated visitors to the Auth Worker; after sign-in, the user returns to the originally requested URL.
+> **Goal:** Shared types, typed API client, MSW mock setup, and formatters ship — all subsequent phases depend on these.
 >
-> **Independent test:** Navigate to `/dashboard` without a session → redirected to `auth.fithub.app/authorize`; complete sign-in → land on `/dashboard`.
+> **Independent test:** `vitest run` — API client unit tests pass; MSW handlers resolve typed fixture responses; formatter snapshot tests pass.
 
-- [ ] W005 🔐 Implement `web/src/middleware.ts` — check for valid `fithub_session` `HttpOnly` cookie; redirect unauthenticated requests to `${AUTH_URL}/authorize?redirect_uri=<original>` preserving the target path; attach a `correlationId` (UUID v4) to every request context
-- [ ] W006 🔐 Implement `web/src/lib/session.ts` — decode the session cookie to extract `userId` and display name for server-rendered pages; expose a typed `SessionUser` interface from `@fithub/core` (add if not yet exported)
-- [ ] W007 🧪 Unit-test the auth gate middleware — unauthenticated requests redirect correctly; cookie present → user context available; redirect target URL is correctly preserved and sanitised (no open-redirect vector)
+- [x] W005 Export stable API response types from `packages/core/src/types/api.ts` — `AuthUser`, `Connection`, `ConnectionsResponse`, `SyncJob`, `SyncHistoryResponse`, `CanonicalActivity`, `ActivitiesResponse`, `ManualSyncResponse`, `UserProfile`, `ErrorReport`, `ApiError`; bump `@fithub/core` minor version
+- [x] W006 Implement typed `fetch` wrapper at `web/src/lib/api-client.ts` — injects `x-correlation-id` header from request context; retries on transient 5xx (max 2 retries, 500ms / 1500ms backoff); normalises all non-2xx responses into `ApiError` with typed `code`; returns typed response per endpoint using types from `@fithub/core`
+- [x] W007 [P] Unit-test `web/src/lib/api-client.ts` — success response path, 5xx retry (succeeds on 2nd attempt), exhausted retry → throws `ApiError`, 401 → throws `ApiError` with `AUTH_INVALID_TOKEN` code, assert `x-correlation-id` forwarded on all requests
+- [x] W008 [P] Implement formatter utilities at `web/src/lib/formatters.ts` — `formatDuration(s: number): string`, `formatDistance(m: number): string`, `formatRelativeTime(epochS: number): string`, `composeSourceBadges(sources: string[]): string[]`; add snapshot unit tests
+- [x] W009 Set up MSW in `web/src/mocks/` — create `web/src/mocks/browser.ts` (service worker), `web/src/mocks/server.ts` (Vitest Node handler), `web/src/mocks/handlers.ts` with handlers for every endpoint in `contracts/openapi.yaml`; wire MSW server into `web/vitest.setup.ts`
+- [x] W010 Configure Vitest at `web/vitest.config.ts` — `jsdom` environment, import `web/vitest.setup.ts`, path alias for `@fithub/core`; confirm `vitest run` executes tests in `web/src/**/*.test.ts`
 
 ---
 
-## Phase 3: API Client + Mocked Dashboard
+## Phase 3: User Story 1 — Authentication (AC-1)
 
-> **Goal:** Typed API client ships; mocked dashboard renders against MSW fixtures; all tests and CI checks pass.
+> **Goal:** All non-public routes are auth-gated; unauthenticated visitors are redirected to the Auth Worker and returned to their originally requested URL after sign-in.
 >
-> **Independent test:** Run `vitest` — API client unit tests pass; dashboard integration test renders against MSW handlers.
+> **Independent test:** Navigate to `/dashboard` without a session cookie → `302` to `auth.fithub.app/authorize?redirect_uri=...`; submit valid session → land on `/dashboard`.
 
-- [ ] W008 🧪 Export stable API response types from `packages/core/src/types/api.ts` — `ConnectionStatus`, `SyncJob`, `CanonicalActivity`, `UserProfile` (add any types not yet exported); bump `@fithub/core` minor version
-- [ ] W009 🔗 Implement `web/src/lib/api-client.ts` — thin `fetch` wrapper that: injects `x-correlation-id` header from request context; retries on transient 5xx (max 2 retries, 500ms / 1500ms backoff); normalises all non-2xx responses into a typed `ApiError`; returns typed response shape per endpoint
-- [ ] W010 [P] ✅ Unit-test `api-client.ts` — success response, 5xx retry (succeeds on 2nd attempt), exhausted retry → throws `ApiError`, 401 → throws `ApiError` with `AUTH_INVALID_TOKEN` code; test that `x-correlation-id` is forwarded
-- [ ] W011 🧪 Set up MSW in `web/src/mocks/` — browser service worker (`msw/browser`) and Vitest server handler (`msw/node`); create fixture handlers for: `GET /api/connections`, `GET /api/sync/latest`, `GET /api/activities`, `GET /api/sync/history`, `GET /api/auth/me`; wire MSW into Vitest setup file
-- [ ] W012 👤 Build dashboard page skeleton at `web/src/pages/dashboard.astro` — server-rendered shell using MSW fixtures; renders a `ConnectionCard` stub per platform returned by `GET /api/connections`; page is behind auth gate
+- [x] W011 [US1] Implement Astro middleware at `web/src/middleware.ts` — check `fithub_session` HttpOnly cookie; redirect unauthenticated requests to `${AUTH_WORKER_URL}/authorize?redirect_uri=<encoded-original-url>`; mint a `correlationId` (UUID v4) and attach to `Astro.locals` for the request lifecycle
+- [x] W012 [US1] Implement `web/src/lib/session.ts` — `getSession(cookies): SessionUser | null` decodes the session cookie server-side; define `SessionUser` interface (add to `packages/core/src/types/api.ts` if not present); export `requireSession` helper that calls `getSession` and throws a redirect if null
+- [x] W013 [US1] Create login/splash page at `web/src/pages/index.astro` — if session present redirect to `/dashboard`; if not, render minimal splash with "Sign in to FitHub" CTA that links to `${AUTH_WORKER_URL}/authorize`
+- [x] W014 [US1] Unit-test auth gate middleware at `web/src/middleware.test.ts` — unauthenticated request redirects with correct target URL; authenticated request passes through with `Astro.locals.user` populated; `redirect_uri` param is URL-encoded and sanitised (no open-redirect vector)
 
 ---
 
-## Phase 4: Dashboard (Real API)
+## Phase 4: User Story 2 — Dashboard & Connections (AC-2, AC-3, AC-4, AC-6)
 
-> **Goal:** Dashboard renders live data from the backend; connect/disconnect links wired; "Sync now" works.
+> **Goal:** Authenticated users see live connection status, can initiate connect/disconnect, and can trigger a manual sync with real-time feedback.
 >
-> **Acceptance Criteria:** AC-2 (platform status badges), AC-3 (connect flow link), AC-4 (disconnect action), AC-6 (manual sync trigger + feedback)
->
-> **Independent test:** Real backend connected → dashboard shows correct connection status; Sync now button triggers sync; status updates on next poll.
+> **Independent test:** Dashboard renders connection cards from `GET /api/connections`; "Sync Now" calls `POST /api/sync/trigger` and shows pending → resolved state (tested against MSW handlers).
 
-- [ ] W013 👤 Implement `ConnectionCard` Astro component — shows platform name, status badge (connected / degraded / disconnected), last-sync timestamp; "Connect" button links to the future `/connect/:platform` flow (placeholder href for now); "Disconnect" button calls `DELETE /api/connections/:platform`
-- [ ] W014 👤 Wire `dashboard.astro` to real `GET /api/connections` and `GET /api/sync/latest` endpoints (remove MSW handler override); handle empty state (no connections yet) with an onboarding prompt
-- [ ] W015 👤 Implement `SyncNowButton` island (`web/src/components/SyncNowButton.tsx`) — calls `POST /api/sync/trigger`; shows spinner while pending; resolves to success tick or error message within the button; no full-page refresh
-- [ ] W016 [P] ✅ Integration-test the dashboard against MSW handlers — renders with two connected platforms; renders empty state; disconnect action fires the correct API call; sync button shows pending then success state
+- [x] W015 [US2] Build `ConnectionCard` Astro component at `web/src/components/ConnectionCard.astro` — props: `connection: Connection`; renders platform name, status badge (`active`/`requires_reauth`/`disconnected`), `last_synced_at` formatted relative time; "Connect" links to `${AUTH_WORKER_URL}/connect/:platform` (placeholder until 006/007); "Disconnect" calls `DELETE /api/connections/:id`
+- [x] W016 [US2] Build `SyncNowButton` island at `web/src/components/SyncNowButton.tsx` — calls `POST /api/sync/trigger`; shows spinner while pending; resolves to ✓ success or ✗ error text inline; re-enables after 30 s; no full-page refresh required
+- [x] W017 [US2] Implement dashboard page at `web/src/pages/dashboard.astro` — server-renders using `requireSession`; fetches `GET /api/connections` via `api-client.ts`; renders one `ConnectionCard` per platform; renders empty onboarding state when no connections exist; includes `<SyncNowButton>` island per active connection
+- [x] W018 [US2] [P] Implement disconnect action handler — `DELETE /api/connections/:id` called via a form action in `ConnectionCard`; on success, connection row removed from UI without full-page refresh (optimistic update via island)
+- [x] W019 [US2] [P] Integration-test dashboard against MSW handlers — renders two connected platforms correctly; renders empty onboarding state; disconnect action fires `DELETE /api/connections/:id`; `SyncNowButton` shows pending then success state
 
 ---
 
-## Phase 5: Sync History & Activity History
+## Phase 5: User Story 3 — Sync History & Activity History (AC-5, AC-7)
 
-> **Goal:** Users can browse recent sync jobs and their activity history.
+> **Goal:** Users can browse recent sync jobs and their full deduplicated activity list with source badges.
 >
-> **Acceptance Criteria:** AC-5 (sync history), AC-7 (activity history with source badges)
+> **Independent test:** Sync history and activity history pages render from MSW fixtures; "Load more" pagination cursor advances correctly; source badges render for multi-platform activities.
 
-- [ ] W017 👤 Implement `web/src/pages/sync-history.astro` — server-rendered list of recent sync jobs from `GET /api/sync/history`; columns: platform, status badge (success / partial / failed), start time, activities added/merged; paginates at 50 per page
-- [ ] W018 👤 Implement `web/src/pages/activity-history.astro` — server-rendered activity list from `GET /api/activities` with cursor-based pagination; each row: date, activity type icon, duration, distance, source badges (e.g., "Zwift + Strava")
-- [ ] W019 [P] 🧪 Unit-test formatter functions (`web/src/lib/formatters.ts`) — `formatDuration`, `formatDistance`, `formatRelativeTime`, `composeSourceBadges`; snapshot tests for rendered badge combinations
-- [ ] W020 [P] 👤 Add navigation links from the dashboard to both history views; add a "Back to dashboard" breadcrumb on each view
+- [x] W020 [US3] Implement sync history page at `web/src/pages/sync-history.astro` — fetches `GET /api/sync/history?limit=50` via `api-client.ts` (returning the last 30 days or last 50 jobs, whichever is smaller, per AC-5); renders table of sync jobs: platform, status badge (success/partial/failed), start time, `activities_synced` count, error message (if failed); cursor-based "Load more" button
+- [x] W021 [US3] Build `SyncHistoryRow` Astro component at `web/src/components/SyncHistoryRow.astro` — props: `job: SyncJob`; renders columns above; status badge colour-coded (green/amber/red)
+- [x] W022 [US3] Implement activity history page at `web/src/pages/activity-history.astro` — fetches `GET /api/activities?limit=50` via `api-client.ts`; renders list with cursor pagination; each row: date, type icon, `formatDuration`, `formatDistance`, source badges from `composeSourceBadges`
+- [x] W023 [US3] Build `ActivityRow` Astro component at `web/src/components/ActivityRow.astro` — props: `activity: CanonicalActivity`; renders date, type icon, formatted duration, formatted distance, source badge(s)
+- [x] W024 [US3] [P] Add navigation links from dashboard to both history views; add breadcrumb "← Dashboard" on each view
+- [x] W025 [US3] [P] Integration-test sync history and activity history pages against MSW — both pages render fixture data; "Load more" passes next `cursor` param; empty state renders when no records
 
 ---
 
-## Phase 6: Settings
+## Phase 6: User Story 4 — Settings (AC-8, AC-10)
 
-> **Goal:** Users can view their profile, request a data export, and delete their account.
+> **Goal:** Users can view profile info, request a data export, and delete their account with a confirmation step.
 >
-> **Acceptance Criteria:** AC-8
+> **Independent test:** Settings page renders profile from `GET /api/user/profile`; export button calls `POST /api/user/export` and shows confirmation; delete flow shows confirmation modal, calls `DELETE /api/user`, and redirects to logged-out state.
 
-- [ ] W021 👤 Implement `web/src/pages/settings.astro` — three sections: Profile (display name, email from `GET /api/auth/me`), Data Export (`POST /api/export`), Account Deletion (`DELETE /api/account`)
-- [ ] W022 🔐 Implement account-deletion flow — confirmation modal island (`ConfirmDeleteModal.tsx`); calls `DELETE /api/account`; on success redirects to a logged-out "Account deleted" page and clears the session cookie
-- [ ] W023 [P] 👤 Implement data-export request — calls `POST /api/export`; shows a success banner ("You'll receive an email when your export is ready") and disables the button for 24h (using a `localStorage` timestamp — the one acceptable use of `localStorage`, as it holds no sensitive data)
+- [x] W026 [US4] Implement settings page at `web/src/pages/settings.astro` — three sections: Profile (email from `GET /api/user/profile`), Data Export, Account Deletion; use `requireSession`; fetch profile server-side via `api-client.ts`
+- [x] W027 [US4] [P] Implement data export request island at `web/src/components/ExportButton.tsx` — calls `POST /api/user/export`; on success shows "You'll receive an email when your export is ready" banner; disables button for 24h using `localStorage` to store a cooldown timestamp (no sensitive data stored)
+- [x] W028 [US4] Implement account deletion flow — create `web/src/pages/deleted.astro` (logged-out confirmation page with "Your account has been deleted" message and link to landing page); implement `ConfirmDeleteModal` island at `web/src/components/ConfirmDeleteModal.tsx`; requires user to type "DELETE" to confirm; calls `DELETE /api/user`; on success clears session cookie server-side and redirects to `deleted.astro`
+- [x] W029 [US4] [P] Integration-test settings page against MSW — profile renders; export button triggers `POST /api/user/export`; delete modal requires "DELETE" confirmation text before enabling submit
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-> **Goal:** All ACs satisfied; Lighthouse ≥90; ≥80% test coverage on `api-client.ts` and `formatters.ts`; Playwright E2E green; privacy copy in place.
+> **Goal:** All ACs satisfied; Lighthouse ≥90; ≥80% coverage on `api-client.ts` and `formatters.ts`; Playwright E2E green; privacy copy in place; CSP enforced; no third-party scripts on any authenticated route.
 
-- [ ] W024 📢 Add landing/login redirect page at `web/src/pages/index.astro` — if authenticated, redirect to `/dashboard`; if not, render a minimal splash ("Sign in to FitHub") with a "Sign in" CTA that initiates the Auth Worker redirect
-- [ ] W025 📢 Implement privacy notice page at `/privacy` — describes data collection, retention, and platform token storage; satisfies Constitution §7 transparency requirement; no tracking pixels
-- [ ] W026 👤 Add cookie consent banner — simple "We use a session cookie for authentication" notice with dismiss action; banner state stored in `sessionStorage`; no third-party consent scripts
-- [ ] W027 ✅ Implement error states for every page — API unreachable → "We're having trouble connecting, please try again" + retry button; empty states for activity list and sync history; no raw error messages or stack traces ever rendered (AC-10)
-- [ ] W028 📢 Implement client-side error reporter (`web/src/lib/error-reporter.ts`) — catches unhandled browser errors and `window.onerror`; maps known HTTP status codes to `ErrorCode` enum values; `POST /api/errors` with structured payload; never includes cookies, tokens, or PII (Constitution §8)
-- [ ] W029 🧪 Write Playwright E2E tests (`web/e2e/`) — happy path: sign in → connect Zwift (mocked redirect) → trigger sync → see activity; settings: request export → confirmation visible; account deletion: confirmation modal → redirect to logged-out state
-- [ ] W030 [P] ⚡ Configure Lighthouse CI — `lighthouserc.cjs`; run against the deployed preview URL (`PAGES_DEPLOYMENT_URL`); assert Lighthouse Performance ≥90 and Best Practices ≥90 on `/dashboard`; wire into GitHub Actions as a required check
-- [ ] W031 [P] 🔐 Security hardening — set `Content-Security-Policy` header in Astro middleware: `default-src 'self'`; `script-src 'self'` (no inline scripts); `style-src 'self' 'unsafe-inline'` (Tailwind); verify no third-party scripts load on any authenticated route (Lighthouse "Best Practices" audit)
-- [ ] W032 ✅ Verify full suite — `vitest run`, `astro check`, `tsc --noEmit`, `eslint`, Playwright (`--reporter=html`), Lighthouse CI all pass; coverage report shows ≥80% on `api-client.ts` and `formatters.ts`
+- [x] W030 Add error states to every page (`web/src/components/ErrorBanner.astro`) — API unreachable → "We're having trouble connecting, please try again" + retry button; empty states for activity list and sync history; no raw error messages, stack traces, or internal IDs ever rendered (AC-10)
+- [x] W031 Implement client-side error reporter at `web/src/lib/error-reporter.ts` — registers `window.onerror` and `window.addEventListener('unhandledrejection')`; maps known HTTP status codes to `ErrorCode` enum from `@fithub/core`; sends `ErrorReport` to `POST /api/errors`; strips cookies, tokens, and PII before sending (Constitution §8)
+- [x] W032 Add privacy notice page at `web/src/pages/privacy.astro` — describes session cookie, data collection, retention policy, fitness token storage; no tracking pixels; satisfies Constitution §7
+- [x] W033 [P] Add cookie consent banner at `web/src/components/CookieBanner.astro` — "We use a session cookie for authentication only" notice with dismiss; state stored in `sessionStorage`; no third-party consent scripts
+- [x] W034 Add sync failure notification banner at `web/src/components/SyncStatusBanner.astro` — polls `GET /api/sync/history?limit=1` every 60 s on the dashboard using `setInterval`; shows an amber banner when latest job is `partial` or `failed`; stop polling on component unmount or when `document.visibilityState === 'hidden'` (use `clearInterval` in cleanup); no WebSockets / SSE (AC resolution from spec.md Q2)
+- [x] W035 Write Playwright E2E tests in `web/e2e/` — configure `playwright.config.ts` with three browser projects: `chromium`, `firefox`, `webkit`; happy path: sign in → see dashboard → trigger sync → navigate to activity history → see at least one activity; settings: request export → confirmation visible; account deletion: modal requires "DELETE" → redirect to logged-out page; run all three browsers in CI
+- [x] W036 [P] Configure Lighthouse CI and JS bundle size gate — create `lighthouserc.cjs` at repo root; run `lhci autorun` against deployed preview URL (`PAGES_DEPLOYMENT_URL`); assert Performance ≥90 and Best Practices ≥90 on `/dashboard`; add `size-limit` config in `web/package.json` with a ≤200KB budget on the Astro-generated JS for the dashboard route; add both as required checks in `.github/workflows/ci.yml`
+- [x] W037 [P] Security hardening — set `Content-Security-Policy` header in `web/src/middleware.ts`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.fithub.app`; verify no third-party scripts load on authenticated routes (Lighthouse Best Practices audit)
+- [x] W038 Final verification — run full suite: `vitest run --coverage`, `astro check`, `tsc --noEmit`, `eslint web/src`, Playwright E2E, Lighthouse CI; confirm coverage ≥80% on `web/src/lib/api-client.ts` and `web/src/lib/formatters.ts`; confirm all ACs pass
+
+---
+
+## Coverage Mapping
+
+| Acceptance Criteria | Task(s) |
+|---|---|
+| AC-1: Auth gate + return redirect | W011, W012, W013, W014 |
+| AC-2: Platform status badges | W015, W017 |
+| AC-3: Connect platform link | W015 (placeholder link; full flow in 006/007) |
+| AC-4: Disconnect platform | W015, W018 |
+| AC-5: Sync history view | W020, W021 |
+| AC-6: Manual sync trigger + feedback | W016, W017 |
+| AC-7: Activity history + source badges | W022, W023 |
+| AC-8: Settings (profile, export, delete) | W026, W027, W028 |
+| AC-9: Cross-browser / mobile viewport | W035 (Playwright), W036 (Lighthouse) |
+| AC-10: No raw errors in UI | W030, W038 |
 
 ---
 
 ## Dependency Graph
 
 ```
-W001 → W002, W003, W004 (all parallel after W001)
-W001 → W005 → W006 → W007
-W008 → W009 → W010 (parallel with W011)
-W008 → W011 → W012
-W012 → W013 → W014 → W015 → W016
-W014 → W017 → W018 → W019+W020 (parallel)
-W018 → W021 → W022+W023 (parallel)
-W021 → W024 → W025+W026+W027+W028 (parallel)
-W027 → W029 → W030+W031+W032 (parallel)
+W001 ──► W002 [P], W003 [P], W004 [P]
+W001 ──► W005 ──► W006 ──► W007 [P]
+                         ──► W008 [P]
+                         ──► W009 ──► W010
+W010 ──► W011 [US1] ──► W012 ──► W013 ──► W014
+W006 ──► W015 [US2] ──► W016 ──► W017 ──► W018 [P], W019 [P]
+W017 ──► W020 [US3] ──► W021 ──► W022 ──► W023 ──► W024 [P], W025 [P]
+W022 ──► W026 [US4] ──► W027 [P], W028 ──► W029 [P]
+W028 ──► W030 ──► W031 ──► W032 ──► W033 [P], W034 ──► W035 ──► W036 [P], W037 [P], W038
 ```
 
-**Critical Path:** W001 → W005 → W008 → W009 → W012 → W014 → W018 → W021 → W027 → W029 → W032
+**Critical Path:** W001 → W005 → W006 → W009 → W010 → W011 → W012 → W013 → W015 → W016 → W017 → W020 → W022 → W026 → W028 → W030 → W034 → W035 → W038
 
 ---
 
-## Coverage Mapping
+## Implementation Strategy
 
-| Acceptance Criteria | Task(s)        |
-| ------------------- | -------------- |
-| AC-1 auth gate       | W005, W006, W007 |
-| AC-2 platform status | W013, W014     |
-| AC-3 connect flow    | W013 (link placeholder; full flow in 006-*) |
-| AC-4 disconnect      | W013, W014     |
-| AC-5 sync history    | W017           |
-| AC-6 manual sync     | W015, W016     |
-| AC-7 activity history| W018, W019     |
-| AC-8 settings        | W021, W022, W023 |
-| AC-9 browser compat  | W029 (Playwright), W030 (Lighthouse) |
-| AC-10 no raw errors  | W027, W032     |
+**MVP Scope (ship first):** Phases 1–3 + Phase 4 (US1 + US2). Users can log in, see connection health, and trigger a manual sync before the data-view and settings pages are complete.
+
+**Phase 4 unblocks:** Phases 5 and 6 can proceed in parallel once the dashboard (W017) ships.
+
+**Parallel streams available:**
+- After W010: US1 (auth gate) and the API client test suite can progress in parallel
+- After W017: US3 (data views) and US4 (settings) are fully independent
+- Within Phase 7: W033–W034 are independent of each other; W036–W037 are independent of each other
+
+---
+
+## Related Documents
+
+- Spec: `.specify/specs/005-web-frontend/spec.md`
+- Plan: `.specify/specs/005-web-frontend/plan.md`
+- Research: `.specify/specs/005-web-frontend/research.md`
+- Data Model: `.specify/specs/005-web-frontend/data-model.md`
+- Contracts: `.specify/specs/005-web-frontend/contracts/openapi.yaml`
+- Quickstart: `.specify/specs/005-web-frontend/quickstart.md`
+- Constitution: `.specify/memory/constitution.md`

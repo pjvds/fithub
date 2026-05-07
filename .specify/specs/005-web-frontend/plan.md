@@ -75,7 +75,7 @@ Execution is sequenced so the scaffold and auth gate ship first (unblocking all 
 - Bearer token in memory + refresh flow: requires JS state on every navigation; breaks on hard reload
 - `localStorage` token: vulnerable to XSS; explicitly prohibited by Constitution §1
 
-**Impact:** Requires the Auth Worker callback to set the cookie rather than return the JWT in the URL fragment; web app must read session info from an authenticated `/api/auth/me` call on first load.
+**Impact:** Requires the Auth Worker callback to set the cookie rather than return the JWT in the URL fragment; web app must read session info from an authenticated `GET /api/me` call on first load.
 
 ---
 
@@ -188,7 +188,7 @@ web/                         ← new workspace member
 
 **Modified components in backend:**
 - `packages/core/src/types/api.ts` — export stable response types used by the web API client
-- `packages/functions/src/api/routes/auth.ts` — confirm `/api/auth/me` endpoint exists (session info); add if absent
+- `packages/functions/src/api/routes/auth.ts` — confirm `GET /api/me` endpoint exists (session info); add if absent
 
 ---
 
@@ -248,7 +248,7 @@ Implement `sync-history` page (`GET /api/sync/history`) and `activity-history` p
 
 ### Phase 6 — Settings
 
-Implement settings page: profile view (`GET /api/auth/me`), export request (`POST /api/export`), and account deletion (`DELETE /api/account`) with confirmation modal.
+Implement settings page: profile view (`GET /api/user/profile`), export request (`POST /api/user/export`), and account deletion (`DELETE /api/user`) with confirmation modal.
 
 **Deliverable:** AC-8 satisfied.
 
