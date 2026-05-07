@@ -15,6 +15,18 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+
+      # Backend / shared packages
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+      # Web frontend
+      - name: Astro type-check
+        run: npm -w @fithub/web run check
+      - name: Web TypeScript check
+        run: npm -w @fithub/web run typecheck
+      - name: Web lint
+        run: npx eslint web/src --ext .ts,.tsx
+      - name: Web unit tests
+        run: npm -w @fithub/web run test
