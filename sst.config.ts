@@ -83,19 +83,12 @@ export default $config({
       link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientSecret],
     });
 
-    // Web frontend — Astro app with SSR via Cloudflare Pages Functions
-    // Deployed to app.fithub.space; requires `npm run build` in web/ first.
-    const web = new sst.cloudflare.StaticSite("Web", {
+    // Web frontend — Astro SSR app deployed as a Cloudflare Worker
+    const web = new sst.cloudflare.Astro("Web", {
       path: "web",
-      build: {
-        command: "npm run build",
-        output: "dist",
-      },
       domain: "app.fithub.space",
       link: [auth],
       environment: {
-        // AUTH_WORKER_URL uses the dynamically-assigned SST worker URL per stage.
-        // Custom domain (auth.fithub.space) can be set as a Cloudflare route post-deploy.
         AUTH_WORKER_URL: auth.url,
         API_BASE_URL: api.url,
       },
