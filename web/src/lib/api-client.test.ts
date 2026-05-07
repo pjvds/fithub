@@ -136,3 +136,127 @@ describe("createApiClient — 4xx errors", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// ApiClientError.toApiError()
+// ---------------------------------------------------------------------------
+
+describe("ApiClientError.toApiError()", () => {
+  it("returns an ApiError shaped object", () => {
+    const err = new ApiClientError({ status: 403, code: "AUTH_INVALID_TOKEN", message: "forbidden" });
+    expect(err.toApiError()).toEqual({ status: 403, code: "AUTH_INVALID_TOKEN", message: "forbidden" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DELETE with body (non-204 response)
+// ---------------------------------------------------------------------------
+
+describe("createApiClient — DELETE with body", () => {
+  it("returns parsed JSON when DELETE responds with 200 body", async () => {
+    const fetch = makeFetch([makeResponse(200, { deleted: true })]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    const result = await (client as unknown as { deleteAccount(): Promise<{ deleted: boolean }> }).deleteAccount();
+    expect(result).toEqual({ deleted: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Endpoint coverage: getSyncHistory, listActivities, getUserProfile,
+// requestExport, deleteAccount, reportError
+// ---------------------------------------------------------------------------
+
+describe("createApiClient — endpoint coverage", () => {
+  it("getSyncHistory — no params (no query string)", async () => {
+    const fetch = makeFetch([makeResponse(200, { jobs: [], cursor: null })]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    await client.getSyncHistory();
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(url).toBe(`${BASE_URL}/api/sync/history`);
+  });
+
+  it("getSyncHistory — with cursor and limit", async () => {
+    const fetch = makeFetch([makeResponse(200, { jobs: [], cursor: null })]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    await client.getSyncHistory({ cursor: "next-page", limit: 10 });
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(url).toContain("cursor=next-page");
+    expect(url).toContain("limit=10");
+  });
+
+  it("listActivities — no params", async () => {
+    const fetch = makeFetch([makeResponse(200, { activities: [], cursor: null })]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    await client.listActivities();
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(url).toBe(`${BASE_URL}/api/activities`);
+  });
+
+  it("listActivities — with cursor, limit, and platform", async () => {
+    const fetch = makeFetch([makeResponse(200, { activities: [], cursor: null })]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    await client.listActivities({ cursor: "c1", limit: 20, platform: "zwift" });
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(url).toContain("platform=zwift");
+    expect(url).toContain("limit=20");
+  });
+
+  it("getUserProfile — calls GET /api/user/profile", async () => {
+    const profile = { userId: "u1", displayName: "Test" };
+    const fetch = makeFetch([makeResponse(200, profile)]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    const result = await client.getUserProfile();
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(url).toBe(`${BASE_URL}/api/user/profile`);
+    expect(result).toEqual(profile);
+  });
+
+  it("requestExport — calls POST /api/user/export", async () => {
+    const resp = { exportId: "export-1" };
+    const fetch = makeFetch([makeResponse(200, resp)]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    const result = await client.requestExport();
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${BASE_URL}/api/user/export`);
+    expect(init.method).toBe("POST");
+    expect(result).toEqual(resp);
+  });
+
+  it("deleteAccount — calls DELETE /api/user and handles 204", async () => {
+    const fetch = makeFetch([new Response(null, { status: 204 })]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    const result = await client.deleteAccount();
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${BASE_URL}/api/user`);
+    expect(init.method).toBe("DELETE");
+    expect(result).toBeUndefined();
+  });
+
+  it("reportError — calls POST /api/errors with the error report", async () => {
+    const fetch = makeFetch([makeResponse(200, {})]);
+    const client = createApiClient({ baseUrl: BASE_URL, correlationId: CORRELATION_ID, fetch });
+
+    await client.reportError({ message: "test error", url: "https://app.fithub.app/" });
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${BASE_URL}/api/errors`);
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body as string);
+    expect(body).toMatchObject({ message: "test error" });
+  });
+});
