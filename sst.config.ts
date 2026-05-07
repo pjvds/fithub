@@ -82,8 +82,24 @@ export default $config({
       link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, zwiftClientSecret, stravaClientSecret],
     });
 
+    // Web frontend — Astro app with SSR via Cloudflare Pages Functions
+    // Deployed to app.fithub.app; requires `npm run build` in web/ first.
+    const web = new sst.cloudflare.StaticSite("Web", {
+      path: "web",
+      build: {
+        command: "npm run build",
+        output: "dist",
+      },
+      domain: "app.fithub.app",
+      environment: {
+        AUTH_WORKER_URL: "https://auth.fithub.app",
+        API_BASE_URL: api.url,
+      },
+    });
+
     return {
       apiUrl: api.url,
+      webUrl: web.url,
       dbId: db.id,
       blobStore: blobStore.name,
       outboxRelay: outboxRelay.id,
