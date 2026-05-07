@@ -13,6 +13,10 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       include: ["src/lib/**/*.ts"],
+      thresholds: {
+        lines: 80,
+        branches: 80,
+      },
     },
     alias: {
       "@fithub/core": fileURLToPath(new URL("../packages/core/src/index.ts", import.meta.url)),

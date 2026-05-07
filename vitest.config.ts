@@ -18,6 +18,10 @@ export default defineConfig({
         // Drizzle schema definitions — column/table builders, not application logic
         "**/src/db/schema.ts",
       ],
+      thresholds: {
+        lines: 80,
+        branches: 80,
+      },
     },
   },
 });
