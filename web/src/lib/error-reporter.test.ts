@@ -44,7 +44,7 @@ describe("initErrorReporter — window.onerror", () => {
     const body = capturedBody(mockFetch);
     expect(body).toMatchObject({
       message: "something went wrong",
-      source: "https://app.fithub.space/dashboard",
+      context: { source: "https://app.fithub.space/dashboard" },
     });
   });
 
