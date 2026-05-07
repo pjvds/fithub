@@ -20,11 +20,11 @@ jobs:
         run: npm ci
 
       # Backend / shared packages
-      - name: Backend: lint
+      - name: "Backend: lint"
         run: npm run lint
-      - name: Backend: typecheck
+      - name: "Backend: typecheck"
         run: npm run typecheck
-      - name: Backend: unit tests with coverage
+      - name: "Backend: unit tests with coverage"
         run: npm run test:coverage
 
       # Web frontend
