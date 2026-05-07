@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mergeActivities } from "../src/dedup/merger.js";
 
 function makeDb(canonicalRow: Record<string, unknown> | null) {

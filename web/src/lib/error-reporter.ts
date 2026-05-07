@@ -8,7 +8,7 @@ import { createApiClient } from "./api-client";
 
 const PII_PATTERNS = [
   // emails
-  /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g,
+  /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
   // bearer tokens / JWTs (3-part base64url separated by dots)
   /[A-Za-z0-9\-_]{20,}\.[A-Za-z0-9\-_]{20,}\.[A-Za-z0-9\-_]{20,}/g,
   // UUIDs

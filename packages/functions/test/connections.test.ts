@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Hono } from "hono";
+import type * as FithubCore from "@fithub/core";
 import type { AuthVariables } from "../src/api/middleware/auth.js";
 import type { LoggerVariables } from "../src/api/middleware/logger.js";
 import type { CorrelationVariables } from "../src/api/middleware/correlation.js";
@@ -81,7 +82,7 @@ vi.mock("drizzle-orm/d1", () => ({
 }));
 
 vi.mock("@fithub/core", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@fithub/core")>();
+  const actual = await importOriginal<typeof FithubCore>();
   return {
     ...actual,
     createStravaAdapter: () => stravaMock,

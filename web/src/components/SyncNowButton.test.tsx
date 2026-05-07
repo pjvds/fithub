@@ -2,8 +2,8 @@
  * Integration tests for SyncNowButton island (W019).
  * Tests the React component directly against MSW handlers.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import SyncNowButton from "./SyncNowButton";
 import { server } from "../../vitest.setup";
 import { http, HttpResponse } from "msw";

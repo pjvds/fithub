@@ -14,7 +14,6 @@ import {
   RateLimitBudget,
 } from "@fithub/core";
 import type { OAuthPlatformAdapter } from "@fithub/core";
-import { UserSyncCoordinator } from "./sync-coordinator.js";
 
 /**
  * Retry delay schedule in milliseconds: 5m → 15m → 30m → 1h.
@@ -68,12 +67,9 @@ export default {
 
       log.info(LogEvent.syncJobStarted, { userId: job.userId, platform: job.platform, attempt: job.attempt });
 
-      let coordinator: UserSyncCoordinator | null = null;
-
       try {
         const doId = env.USER_SYNC_COORDINATOR.idFromName(job.userId);
         const doStub = env.USER_SYNC_COORDINATOR.get(doId);
-        coordinator = doStub as unknown as UserSyncCoordinator;
 
         const beginResp = await doStub.fetch(
           new Request(

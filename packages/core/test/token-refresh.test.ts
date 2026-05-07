@@ -43,7 +43,7 @@ function makeDb(row: {
   const outboxRows: unknown[] = [];
   const updateSets: unknown[] = [];
 
-  const valuesChain = {
+  const _valuesChain = {
     values: vi.fn().mockResolvedValue(undefined),
   };
   const db = {
