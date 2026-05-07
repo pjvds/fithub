@@ -14,7 +14,8 @@
     "./crypto": "./src/crypto/index.ts",
     "./outbox": "./src/outbox/index.ts",
     "./audit": "./src/audit/index.ts",
-    "./schema": "./src/schema.ts"
+    "./schema": "./src/schema.ts",
+    "./types/api": "./src/types/api.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.0",
