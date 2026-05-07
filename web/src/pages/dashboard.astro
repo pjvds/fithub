@@ -1,0 +1,120 @@
+---
+/**
+ * Dashboard page (AC-2, AC-3, AC-4, AC-6)
+ *
+ * Server-renders connection status for all linked platforms. Each platform
+ * gets a ConnectionCard with optional SyncNowButton island for active/reauth
+ * connections. Shows an onboarding empty state when no connections exist.
+ */
+import Layout from "../layouts/Layout.astro";
+import ConnectionCard from "../components/ConnectionCard.astro";
+import SyncNowButton from "../components/SyncNowButton";
+import SyncStatusBanner from "../components/SyncStatusBanner";
+import { requireSession } from "../lib/session";
+import { createApiClient } from "../lib/api-client";
+import type { ConnectionsResponse } from "@fithub/core";
+
+const user = requireSession(Astro.cookies, Astro.redirect, import.meta.env.AUTH_WORKER_URL, Astro.request.url);
+const correlationId: string = Astro.locals.correlationId;
+const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.app";
+const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.app";
+
+let data: ConnectionsResponse = { connections: [] };
+let fetchError: string | null = null;
+
+try {
+  const client = createApiClient({ baseUrl: apiBaseUrl, correlationId });
+  data = await client.listConnections();
+} catch (err) {
+  fetchError = "Unable to load connections. Please refresh.";
+}
+
+const activeConnections = data.connections.filter(
+  (c) => c.status === "active" || c.status === "requires_reauth",
+);
+const syncablePlatforms = data.connections.filter(
+  (c) => c.status === "active" && (c.platform === "zwift" || c.platform === "strava"),
+) as Array<{ platform: "zwift" | "strava"; id: string } & typeof data.connections[0]>;
+---
+
+<Layout title="Dashboard">
+  <div class="mx-auto max-w-3xl px-4 py-10 space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        {user.email && (
+          <p class="mt-1 text-sm text-gray-500">{user.email}</p>
+        )}
+      </div>
+      <nav class="flex gap-4 text-sm font-medium text-brand-600">
+        <a href="/sync-history" class="hover:underline">Sync history</a>
+        <a href="/activity-history" class="hover:underline">Activities</a>
+        <a href="/settings" class="hover:underline">Settings</a>
+      </nav>
+    </div>
+
+    <!-- Connections section -->
+    {syncablePlatforms.length > 0 && (
+      <SyncStatusBanner client:load apiBaseUrl={apiBaseUrl} correlationId={correlationId} />
+    )}
+
+    <section aria-labelledby="connections-heading">
+      <h2 id="connections-heading" class="text-lg font-semibold text-gray-800 mb-3">
+        Connections
+      </h2>
+
+      {fetchError ? (
+        <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+          {fetchError}
+        </div>
+      ) : data.connections.length === 0 ? (
+        <!-- Empty / onboarding state -->
+        <div class="rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
+          <p class="text-gray-500 text-base mb-4">No platforms connected yet.</p>
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href={`${authWorkerUrl}/connect/zwift`}
+              class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+            >
+              Connect Zwift
+            </a>
+            <a
+              href={`${authWorkerUrl}/connect/strava`}
+              class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Connect Strava
+            </a>
+          </div>
+        </div>
+      ) : (
+        <ul class="space-y-3">
+          {data.connections.map((connection) => (
+            <li>
+              <ConnectionCard connection={connection} authWorkerUrl={authWorkerUrl} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <!-- Sync Now section (only shown when there are active connections) -->
+    {syncablePlatforms.length > 0 && (
+      <section aria-labelledby="sync-heading">
+        <h2 id="sync-heading" class="text-lg font-semibold text-gray-800 mb-3">
+          Manual Sync
+        </h2>
+        <div class="flex flex-wrap gap-3">
+          {syncablePlatforms.map((conn) => (
+            <SyncNowButton
+              client:load
+              platform={conn.platform}
+              apiBaseUrl={apiBaseUrl}
+              correlationId={correlationId}
+            />
+          ))}
+        </div>
+      </section>
+    )}
+  </div>
+</Layout>

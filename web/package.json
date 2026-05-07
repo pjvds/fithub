@@ -1,0 +1,45 @@
+{
+  "name": "@fithub/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.0.0",
+    "@astrojs/react": "^4.0.0",
+    "@fithub/core": "*",
+    "astro": "^5.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "jsdom": "^26.0.0",
+    "msw": "^2.0.0",
+    "tailwindcss": "^4.0.0",
+    "vitest": "^4.0.0"
+  },
+  "size-limit": [
+    {
+      "path": "dist/_astro/*.js",
+      "name": "dashboard route JS bundle",
+      "limit": "200 KB"
+    }
+  ]
+}

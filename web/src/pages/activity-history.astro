@@ -1,0 +1,78 @@
+---
+/**
+ * Activity History page (AC-7)
+ * Paginated list of all canonical activities with source badges.
+ */
+import Layout from "../layouts/Layout.astro";
+import ActivityRow from "../components/ActivityRow.astro";
+import { requireSession } from "../lib/session";
+import { createApiClient } from "../lib/api-client";
+import type { ActivitiesResponse } from "@fithub/core";
+
+requireSession(Astro.cookies, Astro.redirect, import.meta.env.AUTH_WORKER_URL, Astro.request.url);
+
+const correlationId: string = Astro.locals.correlationId;
+const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.app";
+
+const cursor = Astro.url.searchParams.get("cursor") ?? undefined;
+const platform = Astro.url.searchParams.get("platform") ?? undefined;
+
+let data: ActivitiesResponse = { activities: [], next_cursor: null };
+let fetchError: string | null = null;
+
+try {
+  const client = createApiClient({ baseUrl: apiBaseUrl, correlationId });
+  data = await client.listActivities({ cursor, limit: 50, platform });
+} catch {
+  fetchError = "Unable to load activities. Please refresh.";
+}
+---
+
+<Layout title="Activity History">
+  <div class="mx-auto max-w-4xl px-4 py-10 space-y-6">
+    <div class="flex items-center gap-4">
+      <a href="/dashboard" class="text-sm text-brand-600 hover:underline">← Dashboard</a>
+      <h1 class="text-2xl font-bold text-gray-900">Activity History</h1>
+    </div>
+
+    {fetchError ? (
+      <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+        {fetchError}
+      </div>
+    ) : data.activities.length === 0 ? (
+      <div class="rounded-xl border-2 border-dashed border-gray-200 p-10 text-center text-gray-500">
+        No activities synced yet. Connect a platform and run a sync from the dashboard.
+      </div>
+    ) : (
+      <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+        <table class="min-w-full">
+          <thead>
+            <tr class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <th class="py-3 pr-4 pl-4">When</th>
+              <th class="py-3 pr-4">Type</th>
+              <th class="py-3 pr-4">Duration</th>
+              <th class="py-3 pr-4">Distance</th>
+              <th class="py-3 pr-4">Source</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {data.activities.map((activity) => (
+              <ActivityRow activity={activity} />
+            ))}
+          </tbody>
+        </table>
+
+        {data.next_cursor && (
+          <div class="border-t border-gray-100 px-4 py-3 text-center">
+            <a
+              href={`/activity-history?cursor=${encodeURIComponent(data.next_cursor)}`}
+              class="text-sm font-medium text-brand-600 hover:underline"
+            >
+              Load more
+            </a>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</Layout>

@@ -1,0 +1,26 @@
+---
+import "../styles/global.css";
+import CookieBanner from "../components/CookieBanner.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "FitHub — unified fitness data sync platform" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} — FitHub</title>
+  </head>
+  <body class="min-h-screen bg-gray-50 text-gray-900">
+    <slot />
+    <CookieBanner />
+  </body>
+</html>

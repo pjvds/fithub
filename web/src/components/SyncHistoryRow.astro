@@ -1,0 +1,43 @@
+---
+/**
+ * SyncHistoryRow component — renders a single sync job as a table row.
+ */
+import type { SyncJob } from "@fithub/core";
+import { formatRelativeTime } from "../lib/formatters";
+
+interface Props {
+  job: SyncJob;
+}
+
+const { job } = Astro.props;
+
+const statusStyle: Record<string, string> = {
+  success: "bg-green-100 text-green-800",
+  partial:  "bg-amber-100 text-amber-800",
+  failed:   "bg-red-100 text-red-800",
+  pending:  "bg-gray-100 text-gray-600",
+};
+
+const platformLabel: Record<string, string> = {
+  zwift:  "Zwift",
+  strava: "Strava",
+};
+
+const badge = statusStyle[job.status] ?? statusStyle["pending"]!;
+const platform = platformLabel[job.platform] ?? job.platform;
+const startedAgo = formatRelativeTime(job.started_at);
+---
+
+<tr class="border-t border-gray-100">
+  <td class="py-3 pr-4 text-sm text-gray-700">{platform}</td>
+  <td class="py-3 pr-4">
+    <span class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${badge}`}>
+      {job.status}
+    </span>
+  </td>
+  <td class="py-3 pr-4 text-sm text-gray-500">{startedAgo}</td>
+  <td class="py-3 pr-4 text-sm text-gray-700 text-right">{job.activities_synced}</td>
+  <td class="py-3 text-sm text-red-600">
+    {job.error_message ?? "—"}
+  </td>
+</tr>

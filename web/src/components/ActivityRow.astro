@@ -1,0 +1,45 @@
+---
+/**
+ * ActivityRow component — renders a single canonical activity as a table row.
+ */
+import type { CanonicalActivityView } from "@fithub/core";
+import { formatDuration, formatDistance, formatRelativeTime, composeSourceBadges } from "../lib/formatters";
+
+interface Props {
+  activity: CanonicalActivityView;
+}
+
+const { activity } = Astro.props;
+
+const typeIcon: Record<string, string> = {
+  cycling:  "🚴",
+  running:  "🏃",
+  swimming: "🏊",
+  hiking:   "🥾",
+  walking:  "🚶",
+  other:    "⚡",
+};
+
+const icon = typeIcon[activity.type] ?? "⚡";
+const startedAgo = formatRelativeTime(activity.started_at);
+const duration = formatDuration(activity.duration_s);
+const distance = activity.distance_m != null ? formatDistance(activity.distance_m) : "—";
+const sourceBadges = composeSourceBadges([activity.primary_source]);
+---
+
+<tr class="border-t border-gray-100">
+  <td class="py-3 pr-4 text-sm text-gray-500">{startedAgo}</td>
+  <td class="py-3 pr-4 text-sm text-gray-700">
+    <span aria-label={activity.type}>{icon}</span>
+    <span class="ml-1 capitalize">{activity.type}</span>
+  </td>
+  <td class="py-3 pr-4 text-sm text-gray-700">{duration}</td>
+  <td class="py-3 pr-4 text-sm text-gray-700">{distance}</td>
+  <td class="py-3 text-sm">
+    {sourceBadges.map((badge) => (
+      <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 mr-1">
+        {badge}
+      </span>
+    ))}
+  </td>
+</tr>

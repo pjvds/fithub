@@ -1,0 +1,25 @@
+---
+/**
+ * Deleted confirmation page — shown after successful account deletion.
+ * Session cookie is cleared server-side by the API Worker; this page
+ * is intentionally public (no requireSession guard).
+ */
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Account Deleted">
+  <div class="mx-auto max-w-md px-4 py-20 text-center space-y-6">
+    <div class="text-5xl">👋</div>
+    <h1 class="text-2xl font-bold text-gray-900">Account deleted</h1>
+    <p class="text-gray-600 text-sm">
+      Your account and all associated data have been permanently deleted.
+      We're sorry to see you go!
+    </p>
+    <a
+      href="/"
+      class="inline-block rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+    >
+      Return to home
+    </a>
+  </div>
+</Layout>

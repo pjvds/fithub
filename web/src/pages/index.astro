@@ -1,0 +1,37 @@
+---
+// Landing / sign-in page (AC-1)
+// If a session cookie is already present, redirect straight to the dashboard.
+// Otherwise render a minimal sign-in CTA pointing at the Auth Worker.
+import Layout from "../layouts/Layout.astro";
+import { getSession } from "../lib/session";
+
+const session = getSession(Astro.cookies);
+if (session) {
+  return Astro.redirect("/dashboard");
+}
+
+const authWorkerUrl =
+  import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.app";
+---
+
+<Layout title="Sign In">
+  <main class="flex min-h-screen flex-col items-center justify-center px-4">
+    <div class="w-full max-w-sm space-y-8 text-center">
+      <div>
+        <h1 class="text-4xl font-bold tracking-tight text-gray-900">FitHub</h1>
+        <p class="mt-3 text-lg text-gray-500">
+          Your fitness data, unified in one place.
+        </p>
+      </div>
+      <a
+        href={`${authWorkerUrl}/authorize`}
+        class="inline-flex w-full items-center justify-center rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 transition-colors"
+      >
+        Sign in to FitHub
+      </a>
+      <p class="text-sm text-gray-400">
+        Connect Zwift, Strava, and more to sync your activities automatically.
+      </p>
+    </div>
+  </main>
+</Layout>

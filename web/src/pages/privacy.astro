@@ -1,0 +1,63 @@
+---
+/**
+ * Privacy Policy page (AC-10)
+ * Public page — no auth required.
+ */
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Privacy Policy">
+  <div class="mx-auto max-w-2xl px-4 py-12 space-y-8 text-sm text-gray-700 leading-relaxed">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
+      <p class="text-gray-500 text-xs">Last updated: {new Date().getFullYear()}</p>
+    </div>
+
+    <section class="space-y-2">
+      <h2 class="text-base font-semibold text-gray-800">1. What we collect</h2>
+      <p>
+        FitHub collects the following data to provide its service: your email address from OAuth
+        sign-in, fitness activity data (duration, distance, type, start time) from connected
+        platforms (Zwift, Strava), sync job records, and session cookies for authentication.
+      </p>
+    </section>
+
+    <section class="space-y-2">
+      <h2 class="text-base font-semibold text-gray-800">2. How we use your data</h2>
+      <p>
+        Your fitness data is stored solely to power the FitHub dashboard — allowing you to view
+        a unified history across platforms. We do not sell, share, or use your data for advertising.
+      </p>
+    </section>
+
+    <section class="space-y-2">
+      <h2 class="text-base font-semibold text-gray-800">3. Cookies</h2>
+      <p>
+        We use a single, strictly necessary session cookie (<code>fithub_session</code>) to keep
+        you authenticated. No tracking or advertising cookies are set.
+      </p>
+    </section>
+
+    <section class="space-y-2">
+      <h2 class="text-base font-semibold text-gray-800">4. Data deletion</h2>
+      <p>
+        You can delete your account and all associated data at any time from the{" "}
+        <a href="/settings" class="text-brand-600 hover:underline">Settings</a> page.
+        Deletion is immediate and permanent.
+      </p>
+    </section>
+
+    <section class="space-y-2">
+      <h2 class="text-base font-semibold text-gray-800">5. Third-party platforms</h2>
+      <p>
+        When you connect Zwift or Strava, you authorise FitHub to read activity data on your
+        behalf via their OAuth APIs. FitHub does not store OAuth access tokens beyond their
+        immediate use; refresh tokens are encrypted at rest.
+      </p>
+    </section>
+
+    <p class="text-gray-400 text-xs">
+      Questions? Contact us at <a href="mailto:privacy@fithub.app" class="underline">privacy@fithub.app</a>.
+    </p>
+  </div>
+</Layout>
