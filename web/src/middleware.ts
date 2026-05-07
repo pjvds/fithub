@@ -44,7 +44,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (!accessToken) {
     const callbackUrl = new URL("/auth/callback", url).toString();
     return redirect(
-      `${authWorkerUrl}/authorize?client_id=web&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(url.pathname + url.search)}`,
+      `${authWorkerUrl}/authorize?client_id=web&response_type=code&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(url.pathname + url.search)}`,
       302,
     );
   }
@@ -65,7 +65,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     cookies.delete("refresh_token", { path: "/" });
     const callbackUrl = new URL("/auth/callback", url).toString();
     return redirect(
-      `${authWorkerUrl}/authorize?client_id=web&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(url.pathname + url.search)}`,
+      `${authWorkerUrl}/authorize?client_id=web&response_type=code&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(url.pathname + url.search)}`,
       302,
     );
   }
