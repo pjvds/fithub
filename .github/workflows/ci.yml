@@ -107,11 +107,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Seed SST app secrets
         run: |
-          npx sst secret set TOKEN_MASTER_KEY "$TOKEN_MASTER_KEY" --stage dev
-          npx sst secret set STRAVA_CLIENT_SECRET "$STRAVA_CLIENT_SECRET" --stage dev
-          npx sst secret set STRAVA_CLIENT_ID "185641" --stage dev
-          npx sst secret set REDIRECT_BASE_URL "https://app.fithub.space" --stage dev
-          npx sst secret set EMAIL_PROVIDER_KEY "$EMAIL_PROVIDER_KEY" --stage dev
+          npx sst secret set TOKEN_MASTER_KEY "$TOKEN_MASTER_KEY" --stage dev --print-logs
+          npx sst secret set STRAVA_CLIENT_SECRET "$STRAVA_CLIENT_SECRET" --stage dev --print-logs
+          npx sst secret set STRAVA_CLIENT_ID "185641" --stage dev --print-logs
+          npx sst secret set REDIRECT_BASE_URL "https://app.fithub.space" --stage dev --print-logs
+          npx sst secret set EMAIL_PROVIDER_KEY "$EMAIL_PROVIDER_KEY" --stage dev --print-logs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TOKEN_MASTER_KEY: ${{ secrets.TOKEN_MASTER_KEY }}
