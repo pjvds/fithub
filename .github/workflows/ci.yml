@@ -86,16 +86,14 @@ jobs:
         run: |
           npx sst secret set TOKEN_MASTER_KEY "$TOKEN_MASTER_KEY" --stage dev
           npx sst secret set STRAVA_CLIENT_SECRET "$STRAVA_CLIENT_SECRET" --stage dev
-          npx sst secret set STRAVA_CLIENT_ID "$STRAVA_CLIENT_ID" --stage dev
-          npx sst secret set REDIRECT_BASE_URL "$REDIRECT_BASE_URL" --stage dev
-          npx sst secret set OPENAUTH_SIGNING_KEY "$OPENAUTH_SIGNING_KEY" --stage dev
+          npx sst secret set STRAVA_CLIENT_ID "185641" --stage dev
+          npx sst secret set REDIRECT_BASE_URL "https://app.fithub.space" --stage dev
+          npx sst secret set EMAIL_PROVIDER_KEY "$EMAIL_PROVIDER_KEY" --stage dev
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TOKEN_MASTER_KEY: ${{ secrets.TOKEN_MASTER_KEY }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
-          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
-          REDIRECT_BASE_URL: ${{ secrets.REDIRECT_BASE_URL }}
-          OPENAUTH_SIGNING_KEY: ${{ secrets.OPENAUTH_SIGNING_KEY }}
+          EMAIL_PROVIDER_KEY: ${{ secrets.EMAIL_PROVIDER_KEY }}
       - name: Deploy to dev stage
         run: npx sst deploy --stage dev
         env:
