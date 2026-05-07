@@ -8,7 +8,7 @@
 
 **Feature ID:** feat-006-cicd-deploy-pipeline
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 **Status:** In Development
 
@@ -37,7 +37,8 @@ The web frontend (feat-005) is now built and tested locally. Before any real tra
 An automated CI/CD pipeline using GitHub Actions that:
 1. Runs quality checks on every pull request — tests, static analysis, type safety, and build verification
 2. Automatically deploys to the **dev** environment on every commit to `master`
-3. Never exposes secrets or credentials in logs or outputs
+3. Automatically seeds all SST app secrets from GitHub Environment secrets before every deployment — no manual local setup required
+4. Never exposes secrets or credentials in logs or outputs
 
 **User Stories**
 
@@ -59,26 +60,34 @@ I want clear, actionable feedback when the pipeline fails,
 so that I can fix issues quickly without guessing what went wrong.
 ```
 
+```
+As a new developer or CI environment,
+I want the pipeline to handle all secret configuration automatically,
+so that I never have to run manual local commands before a deployment works.
+```
+
 **Acceptance Criteria**
 
 - [ ] AC-1: Every pull request triggers automated checks; all checks must pass before merging is permitted.
 - [ ] AC-2: Automated checks include test execution, type safety verification, linting, and a successful build.
 - [ ] AC-3: Every commit pushed to `master` automatically deploys the full solution to the **dev** stage.
-- [ ] AC-4: Secrets and credentials (Cloudflare API tokens, SST credentials) are never visible in pipeline logs.
+- [ ] AC-4: Secrets and credentials (Cloudflare API tokens, SST app secrets) are never visible in pipeline logs.
 - [ ] AC-5: Every workflow step has a descriptive `name:` label; failed steps surface the exact failing step name in the GitHub pull request checks panel or deployment view.
 - [ ] AC-6: The pipeline deploys both the backend infrastructure and the web frontend as a coordinated unit within a single stage.
 - [ ] AC-7: The pipeline is idempotent — running it twice with the same code produces the same deployed state.
 - [ ] AC-8: A coverage report is generated, published as a pipeline artefact, and summarised inline in the GitHub Actions step summary on every run.
+- [ ] AC-9: All SST app secrets are automatically seeded from GitHub Environment secrets during the deployment job — no manual `sst secret set` commands are required to deploy a new environment.
 
 ---
 
 ## Constitution Alignment Checklist
 
 ### ✅ Data Privacy & Security
-- [x] Secrets (Cloudflare tokens, SST credentials) are stored in GitHub Secrets — never in source code or logs
+- [x] Secrets (Cloudflare tokens, SST app credentials) are stored in GitHub Environment secrets — never in source code or logs
+- [x] All 9 secrets (1 infrastructure token + 8 SST app secrets) are managed in the GitHub `dev` environment and seeded to Cloudflare automatically by the pipeline
 - [x] Pipeline access follows least-privilege: only the minimum permissions required per job
 - [x] No user data or PII passes through the pipeline
-- **Notes:** This feature does not handle user data directly. Security concern is limited to credential management.
+- **Notes:** GitHub is the single authoritative source for all credential values. The deployment runtime reads them from Cloudflare's secret store, which is seeded by CI on every deploy.
 
 ### ✅ Code Quality & Testing
 - [x] All tests must pass before deployment proceeds
@@ -122,7 +131,8 @@ so that I can fix issues quickly without guessing what went wrong.
 **In Scope:**
 - GitHub Actions workflow for pull request quality checks
 - GitHub Actions workflow for dev stage deployment on every push to `master`
-- Secret management via GitHub repository secrets
+- Secret management via GitHub repository/environment secrets
+- Automated SST app secret seeding from GitHub Environment secrets as part of every deployment (via `sst secret set`)
 - Test execution, linting, type checking, and build verification as pipeline steps
 - Coverage report as a pipeline artefact and an inline GitHub Actions step summary
 - Notification of pipeline failure (GitHub native status checks)
@@ -141,7 +151,7 @@ so that I can fix issues quickly without guessing what went wrong.
 - **CI Platform:** GitHub Actions
 - **Hosting:** Cloudflare (Pages for web frontend, Workers for backend services)
 - **Stages:** `dev` only (prod stage deferred)
-- **Secrets:** Must be stored in GitHub repository or environment secrets; never committed to source
+- **Secrets:** All credential values are stored in GitHub Environment secrets. The pipeline seeds SST app secrets to Cloudflare's secret store on every deployment; the deployed runtime reads from Cloudflare. 9 secrets total: `CLOUDFLARE_API_TOKEN` + 8 SST app secrets (`TOKEN_MASTER_KEY`, `STRAVA_CLIENT_SECRET`, `STRAVA_CLIENT_ID`, `REDIRECT_BASE_URL`, `OPENAUTH_SIGNING_KEY`, `APPLE_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, `EMAIL_PROVIDER_KEY`).
 - **Credential scope:** Cloudflare API token must be scoped to minimum required permissions
 
 ### Architecture & Components
@@ -164,13 +174,14 @@ Push to master
     ▼
 [Deploy Dev Workflow]
     ├─ (Re-runs quality checks for safety)
+    ├─ Seed SST app secrets (reads 8 values from GitHub Environment secrets → sst secret set --stage dev)
     └─ SST deploy --stage dev → Cloudflare
 ```
 
 **Component Changes:**
-- `.github/workflows/`: New CI/CD workflow files added
+- `.github/workflows/`: CI/CD workflow file — `deploy-dev` job includes seed step before SST deploy
 - `sst.config.ts`: Stages already configured; no changes expected
-- Repository settings: GitHub Environment (`dev`) configured with appropriate secrets
+- Repository settings: GitHub Environment (`dev`) configured with 9 secrets (1 Cloudflare token + 8 SST app secrets)
 
 ---
 
@@ -181,6 +192,7 @@ Push to master
 - Verify PR quality gate blocks a merge when linting fails
 - Verify that a push to `master` triggers the dev deployment
 - Verify that secrets do not appear in any step log output
+- Verify that `sst secret list --stage dev` shows all 8 app secrets after a successful pipeline run
 
 **Pipeline steps tested per run:**
 - Unit tests across all workspaces (vitest)
@@ -196,6 +208,7 @@ Push to master
 - **Metric 2:** Dev environment is updated within 5 minutes of a push to `master` (P95 target).
 - **Metric 3:** No secrets or credentials appear in any pipeline log (verified by log inspection).
 - **Metric 4:** Pipeline failure reason is identifiable by a developer within 2 minutes of a failed run.
+- **Metric 5:** A developer can set up a fully working deployment from scratch by adding 9 GitHub Environment secrets — no local CLI commands required.
 
 ---
 
@@ -206,6 +219,7 @@ Push to master
 - A Cloudflare API token with sufficient scope to deploy the application already exists or will be created before implementation.
 - All workspaces (`packages/core`, `web`, `workers/*`) are already testable and buildable locally.
 - GitHub repository has appropriate permissions to create environments and required status checks.
+- All SST app secret values are stored as GitHub Environment secrets in the `dev` environment; the pipeline seeds them to Cloudflare's secret store on every deploy. No manual local `sst secret set` commands are required after initial GitHub setup.
 
 ---
 

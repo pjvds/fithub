@@ -8,17 +8,19 @@ Use this checklist to validate the spec before handing off to speckit-plan.
 
 - [x] FR-1: PR quality gate workflow defined (tests, lint, type check, build)
 - [x] FR-2: Dev stage auto-deployment on every push to `master`
-- [x] FR-3: Secrets managed via GitHub Secrets — never in source code or logs
+- [x] FR-3: Secrets managed via GitHub Environment secrets — never in source code or logs
 - [x] FR-4: Pipeline status visible in GitHub PR and deployment view
 - [x] FR-5: Coverage report published as pipeline artefact or PR comment
 - [x] FR-6: Web frontend + backend deployed as a coordinated unit per stage
+- [x] FR-7: All SST app secrets seeded from GitHub Environment secrets automatically as part of the deployment job — no manual local commands required
 
 ## Non-Functional Requirements
 
-- [x] NFR-1: Pipeline idempotent — same code = same deployed state
+- [x] NFR-1: Pipeline idempotent — same code = same deployed state (secret seeding is idempotent via `sst secret set`)
 - [x] NFR-2: Dev environment updated within 5 minutes of push to `master`
 - [x] NFR-3: No secrets/credentials visible in any log output
 - [x] NFR-4: Pipeline failure reason identifiable within 2 minutes
+- [x] NFR-5: A new environment can be bootstrapped from scratch with 9 GitHub Environment secrets only
 
 ## Constitution Compliance
 
@@ -34,4 +36,4 @@ None.
 
 ---
 
-**Status:** READY FOR speckit-plan
+**Status:** READY — spec v1.1.0 reflects automated secret seeding (FR-7 / AC-9 added)

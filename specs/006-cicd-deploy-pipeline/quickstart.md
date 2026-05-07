@@ -35,33 +35,36 @@ This guide documents the one-time setup steps required before the CI/CD pipeline
 
 ---
 
-## Step 2: Create the GitHub Environment & Secret
+## Step 2: Create the GitHub Environment & Secrets
 
 1. Go to your GitHub repository → **Settings** → **Environments**
 2. Click **New environment**, name it: `dev`
-3. Open the `dev` environment → **Add secret**
-4. Name: `CLOUDFLARE_API_TOKEN`, Value: paste the token from Step 1
-5. (Optional) Add environment protection rules if desired
+3. Open the `dev` environment → **Add secret** for each of the following:
+
+| Secret Name | Value |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | API token from Step 1 |
+| `TOKEN_MASTER_KEY` | 32-byte random hex string (e.g. `openssl rand -hex 32`) |
+| `STRAVA_CLIENT_SECRET` | From [Strava API settings](https://www.strava.com/settings/api) |
+| `STRAVA_CLIENT_ID` | From Strava API settings |
+| `REDIRECT_BASE_URL` | `https://app.fithub.app` (or your custom domain) |
+| `OPENAUTH_SIGNING_KEY` | 32-byte random hex string |
+| `APPLE_CLIENT_SECRET` | Apple Sign-in private key JWT |
+| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console OAuth credentials |
+| `EMAIL_PROVIDER_KEY` | API key for your email provider (Resend, Postmark, etc.) |
+
+4. (Optional) Add environment protection rules if desired
 
 ---
 
-## Step 3: Seed SST App Secrets
+## Step 3: SST App Secrets — Automated by CI
 
-SST app secrets are stored in Cloudflare's secret store — **not** in GitHub. Run these commands once from your local machine (from the repo root):
+SST app secrets are automatically seeded by the pipeline on every deploy.
+The `deploy-dev` job reads each secret from the GitHub Environment and runs
+`sst secret set` before deploying — no manual local commands required.
 
-```bash
-# Set each secret for the dev stage
-npx sst secret set TOKEN_MASTER_KEY "<value>" --stage dev
-npx sst secret set STRAVA_CLIENT_SECRET "<value>" --stage dev
-npx sst secret set STRAVA_CLIENT_ID "<value>" --stage dev
-npx sst secret set REDIRECT_BASE_URL "https://app.fithub.app" --stage dev
-npx sst secret set OPENAUTH_SIGNING_KEY "<value>" --stage dev
-npx sst secret set APPLE_CLIENT_SECRET "<value>" --stage dev
-npx sst secret set GOOGLE_CLIENT_SECRET "<value>" --stage dev
-npx sst secret set EMAIL_PROVIDER_KEY "<value>" --stage dev
-```
-
-> **Note:** Run `npx sst secret list --stage dev` to verify all secrets are set.
+> **Manual verification (optional):** After a successful deploy, run
+> `npx sst secret list --stage dev` locally to confirm all secrets are present.
 
 ---
 
