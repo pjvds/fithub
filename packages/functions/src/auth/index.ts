@@ -25,6 +25,14 @@ function buildIssuer(env: Env) {
     subjects,
     storage: CloudflareStorage({ namespace: env.AuthKv as never }),
 
+    allow: async ({ redirectURI }) => {
+      const allowed = [
+        "https://app.fithub.space/auth/callback",
+        "http://localhost:4321/auth/callback",
+      ];
+      return allowed.includes(redirectURI);
+    },
+
     providers: {
       email: CodeProvider({
         sendCode: async (claims, code) => {
