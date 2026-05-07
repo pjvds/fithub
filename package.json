@@ -5,7 +5,8 @@
   "description": "FitHub — hybrid fitness data sync platform (backend foundation)",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "web"
   ],
   "scripts": {
     "dev": "sst dev",
