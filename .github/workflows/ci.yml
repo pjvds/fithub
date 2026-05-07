@@ -82,6 +82,10 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Install SST providers
+        run: npx sst install
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Seed SST app secrets
         run: |
           npx sst secret set TOKEN_MASTER_KEY "$TOKEN_MASTER_KEY" --stage dev
