@@ -67,13 +67,13 @@ function buildIssuer(env: Env) {
           console.log(JSON.stringify({ event: LogEvent.authMagicLinkSent, email: claims.email }));
         },
 
-        request: async (_req, state) => {
+        request: async (_req, state, _form, error) => {
           if (state.type === "start") {
-            return new Response(startHtml(), {
+            return new Response(startHtml(error?.type === "invalid_claim" ? "Invalid email address." : undefined), {
               headers: { "content-type": "text/html; charset=utf-8" },
             });
           }
-          return new Response(codeHtml(), {
+          return new Response(codeHtml(error?.type === "invalid_code" ? "Invalid code, please try again." : undefined), {
             headers: { "content-type": "text/html; charset=utf-8" },
           });
         },
@@ -111,7 +111,7 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-function startHtml(): string {
+function startHtml(errorMessage?: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -122,11 +122,14 @@ function startHtml(): string {
   body{font-family:system-ui,sans-serif;max-width:400px;margin:4rem auto;padding:0 1rem}
   input{width:100%;padding:.5rem;margin:.25rem 0 1rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}
   button{width:100%;padding:.6rem;background:#2563eb;color:#fff;border:none;border-radius:4px;cursor:pointer}
+  .error{color:#dc2626;margin-bottom:1rem}
 </style>
 </head>
 <body>
 <h1>Sign in to FitHub</h1>
+${errorMessage ? `<p class="error">${errorMessage}</p>` : ""}
 <form method="POST">
+  <input type="hidden" name="action" value="request">
   <label>Email address
     <input name="email" type="email" required autofocus>
   </label>
@@ -155,6 +158,7 @@ function codeHtml(errorMessage?: string): string {
 <p>We sent a 6-digit code to your email.</p>
 ${errorMessage ? `<p class="error">${errorMessage}</p>` : ""}
 <form method="POST">
+  <input type="hidden" name="action" value="verify">
   <label>6-digit code
     <input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus>
   </label>
