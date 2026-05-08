@@ -60,10 +60,16 @@ function buildIssuer(env: Env) {
       return allowed.includes(redirectURI);
     },
 
-    select: async () =>
-      new Response(selectHtml(), {
+    select: async (_providers, req) => {
+      const url = new URL(req.url);
+      const passwordUrl = new URL(url);
+      passwordUrl.searchParams.set("provider", "password");
+      const emailUrl = new URL(url);
+      emailUrl.searchParams.set("provider", "email");
+      return new Response(selectHtml(passwordUrl.toString(), emailUrl.toString()), {
         headers: { "content-type": "text/html; charset=utf-8" },
-      }),
+      });
+    },
 
     providers: {
       password: PasswordProvider({
@@ -182,7 +188,7 @@ function errorBanner(message: string): string {
   return `<p class="error">${message}</p>`;
 }
 
-function selectHtml(): string {
+function selectHtml(passwordUrl: string, emailUrl: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -195,9 +201,9 @@ function selectHtml(): string {
 <h1>Sign in to FitHub</h1>
 <p class="subtitle">Choose how you'd like to sign in.</p>
 <div class="stack">
-  <a class="btn" href="?provider=password">Email &amp; password</a>
+  <a class="btn" href="${passwordUrl}">Email &amp; password</a>
   <div class="divider">or</div>
-  <a class="btn btn-ghost" href="?provider=email">Send me a magic link</a>
+  <a class="btn btn-ghost" href="${emailUrl}">Send me a magic link</a>
 </div>
 </body>
 </html>`;
