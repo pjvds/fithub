@@ -20,10 +20,24 @@ async function importKey(keyB64: string): Promise<CryptoKey> {
   // Pad to a multiple of 4 if needed
   const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
   const raw = b64decode(padded);
-  if (raw.length !== 32) {
-    throw new Error(`TOKEN_MASTER_KEY must be 32 bytes when base64-decoded (got ${raw.length} bytes from ${padded.length}-char string)`);
+  if (raw.length < 16) {
+    throw new Error(`TOKEN_MASTER_KEY must be at least 16 bytes when base64-decoded (got ${raw.length} bytes)`);
   }
-  return crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", false, ["encrypt", "decrypt"]);
+  // Use HKDF to derive a 32-byte AES-256-GCM key from the raw key material.
+  // This accepts any base64 key ≥ 16 bytes and is sound cryptographic practice.
+  const hkdfKey = await crypto.subtle.importKey("raw", raw as BufferSource, "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(0),
+      info: new TextEncoder().encode("fithub-token-vault-v1"),
+    },
+    hkdfKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
 }
 
 export async function encryptToken(plaintext: string, masterKeyB64: string): Promise<string> {
