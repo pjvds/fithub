@@ -59,3 +59,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Playwright MCP snapshots
+.playwright-mcp/
+
+# Temporary screenshots
+dashboard.png
+*.png

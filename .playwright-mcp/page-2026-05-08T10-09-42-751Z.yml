@@ -1,7 +1,0 @@
-- generic [ref=e1]:
-  - heading "Sign in to FitHub" [level=1] [ref=e2]
-  - generic [ref=e3]:
-    - generic [ref=e4]:
-      - text: Email address
-      - textbox "Email address" [active] [ref=e5]
-    - button "Send code" [ref=e6] [cursor=pointer]
