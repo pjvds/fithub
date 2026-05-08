@@ -15,6 +15,7 @@ import { createDedupRouter } from "./routes/dedup.js";
 interface AppEnv {
   Bindings: {
     Auth: { fetch: typeof fetch };
+    AUTH_WORKER_URL: string;
   };
   Variables: AuthVariables & CorrelationVariables & LoggerVariables;
 }
@@ -62,7 +63,9 @@ authedRoutes.use("*", async (c, next) => {
   const authBinding = c.env.Auth;
   const requestId = c.req.header("x-request-id");
 
-  const issuer = (Resource as unknown as { Auth?: { url?: string } }).Auth?.url ?? "";
+  // AUTH_WORKER_URL is injected as a plain env var in sst.config.ts — more
+  // reliable than Resource.Auth.url which depends on the SST Resource proxy.
+  const issuer = c.env.AUTH_WORKER_URL;
 
   const client = createClient({
     clientID: "api",

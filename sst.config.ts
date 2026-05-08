@@ -59,6 +59,9 @@ export default $config({
       handler: "packages/functions/src/api/index.ts",
       url: true,
       link: [db, feedCache, authKv, blobStore, eventBus, syncJobs, retryJobs, auth, ...apiSecrets],
+      environment: {
+        AUTH_WORKER_URL: `https://${authDomain}`,
+      },
       transform: {
         worker: {
           serviceBindings: [{ name: "Auth", service: auth.name }],
