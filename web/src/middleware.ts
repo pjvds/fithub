@@ -39,7 +39,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space";
   const client = createAuthClient({ issuer: authWorkerUrl });
 
-  const accessToken = cookies.get("access_token")?.value;
+  let accessToken = cookies.get("access_token")?.value;
+  const refreshToken = cookies.get("refresh_token")?.value;
+
+  // If access token is absent but refresh token exists, try a silent refresh
+  // before forcing the user back through the login flow.
+  if (!accessToken && refreshToken) {
+    const refreshed = await client.refresh(refreshToken);
+    if (!refreshed.err && refreshed.tokens) {
+      const secure = url.protocol === "https:";
+      cookies.set("access_token", refreshed.tokens.access, {
+        ...SESSION_COOKIE_OPTS,
+        secure,
+        maxAge: 15 * 60,
+      });
+      cookies.set("refresh_token", refreshed.tokens.refresh, {
+        ...SESSION_COOKIE_OPTS,
+        secure,
+        maxAge: 30 * 24 * 60 * 60,
+      });
+      accessToken = refreshed.tokens.access;
+    }
+  }
 
   if (!accessToken) {
     const callbackUrl = new URL("/auth/callback", url).toString();
