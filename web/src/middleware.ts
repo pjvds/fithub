@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createAuthClient } from "@/lib/auth-client";
 
 // Routes that are accessible without authentication
-const PUBLIC_PATHS = new Set(["/", "/auth/callback", "/auth/logout", "/privacy", "/deleted"]);
+const PUBLIC_PATHS = new Set(["/", "/auth/callback", "/auth/logout", "/privacy", "/deleted", "/favicon.ico"]);
 
 const CSP = [
   "default-src 'self'",
