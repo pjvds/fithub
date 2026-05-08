@@ -45,15 +45,20 @@ try {
   if (!res.ok) {
     // Surface backend-specific error codes when available (e.g. expired_state)
     let errorCode = "connect_failed";
+    let bodyText = "";
     try {
-      const body = await res.json() as { code?: string };
+      bodyText = await res.text();
+      const body = JSON.parse(bodyText) as { code?: string; error?: string };
       if (body.code) errorCode = body.code;
     } catch { /* ignore */ }
-    return Astro.redirect(`/dashboard?error=${encodeURIComponent(errorCode)}`, 302);
+    console.error(JSON.stringify({ event: "oauth_callback_api_error", platform, status: res.status, body: bodyText, hasAccessToken: !!accessToken }));
+    return Astro.redirect(`/dashboard?error=${encodeURIComponent(errorCode)}&_status=${res.status}&_detail=${encodeURIComponent(bodyText.slice(0, 200))}`, 302);
   }
 
   return Astro.redirect(`/dashboard?connected=${encodeURIComponent(platform ?? "strava")}`, 302);
-} catch {
-  return Astro.redirect("/dashboard?error=connect_failed", 302);
+} catch (err) {
+  const detail = err instanceof Error ? err.message : String(err);
+  console.error(JSON.stringify({ event: "oauth_callback_fetch_error", platform, error: detail }));
+  return Astro.redirect(`/dashboard?error=connect_failed&_status=fetch_error&_detail=${encodeURIComponent(detail.slice(0, 200))}`, 302);
 }
 ---
