@@ -104,6 +104,10 @@ app.onError((err, c) => {
     method: c.req.method,
     path: c.req.path,
   });
+  // Temporary: expose error in dev for debugging
+  if (stage === "dev") {
+    return c.json({ error: "internal_error", debug: String(err), stack: (err as Error).stack }, 500);
+  }
   return c.json({ error: "internal_error" }, 500);
 });
 
