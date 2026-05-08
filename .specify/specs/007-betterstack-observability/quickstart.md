@@ -9,6 +9,7 @@
 - BetterStack account created (confirmed)
 - FitHub deployed to at least the `dev` stage (`sst deploy`)
 - `GET /api/status` endpoint live (T064 — already shipped)
+- `BETTER_STACK_TOKEN` added as a GitHub Environment secret under **Settings → Environments → dev → Environment secrets**
 
 ---
 
@@ -23,15 +24,15 @@ In the BetterStack dashboard:
 
 ---
 
-## Step 2: Set the SST Secret
+## Step 2: Set the Secret in GitHub
 
-```bash
-# For dev stage
-sst secret set BetterStackToken <your-dev-source-token>
+Add the source token as a GitHub Environment secret:
 
-# For production
-sst secret set BetterStackToken <your-prod-source-token> --stage production
-```
+1. Go to your repo → **Settings → Environments → dev → Environment secrets**
+2. Add secret: `BETTER_STACK_TOKEN` = `<your-dev-source-token>`
+3. Repeat for the `production` environment with the prod source token
+
+The CI/CD pipeline (`ci.yml`) will call `sst secret set BetterStackToken` automatically on the next deploy.
 
 ---
 

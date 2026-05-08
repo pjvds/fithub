@@ -41,7 +41,7 @@
 
 > SST secret and Tail Worker resource declared before any implementation.
 
-- [ ] T001 Add `BetterStackToken` SST secret declaration to `sst.config.ts`
+- [ ] T001 Add `BetterStackToken` SST secret declaration to `sst.config.ts`; add `BETTER_STACK_TOKEN` to the "Verify required secrets" check, "Seed SST app secrets" `sst secret set` call, and env blocks in `.github/workflows/ci.yml` (GitHub Environment secret `BETTER_STACK_TOKEN` → SST secret `BetterStackToken`)
 
 ---
 
