@@ -4,6 +4,7 @@ import { CloudflareStorage } from "@openauthjs/openauth/storage/cloudflare";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { Resend } from "resend";
+import { Resource } from "sst";
 import { users } from "@fithub/core";
 import { subjects } from "../shared/subjects.js";
 import { LogEvent } from "@fithub/core";
@@ -11,7 +12,6 @@ import { LogEvent } from "@fithub/core";
 interface Env {
   AuthKv: KVNamespace;
   FithubDb: D1Database;
-  EMAIL_PROVIDER_KEY: string;
 }
 
 function buildIssuer(env: Env) {
@@ -32,7 +32,9 @@ function buildIssuer(env: Env) {
     providers: {
       email: CodeProvider({
         sendCode: async (claims, code) => {
-          const resend = new Resend(env.EMAIL_PROVIDER_KEY);
+          const resend = new Resend(
+            (Resource as unknown as { EMAIL_PROVIDER_KEY: { value: string } }).EMAIL_PROVIDER_KEY.value
+          );
           const { error } = await resend.emails.send({
             from: "FitHub <noreply@fithub.space>",
             to: claims.email as string,
