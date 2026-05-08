@@ -51,23 +51,19 @@ const lastSynced = connection.last_synced_at
 
   <div class="flex-shrink-0 flex flex-col gap-2">
     {connection.status === "disconnected" ? (
-      <form method="POST" action={`/api/connections/${connection.platform}/connect`}>
-        <button
-          type="submit"
-          class="inline-flex items-center rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 transition-colors"
-        >
-          Connect
-        </button>
-      </form>
+      <a
+        href={`/api/connections/${connection.platform}/connect`}
+        class="inline-flex items-center rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 transition-colors"
+      >
+        Connect
+      </a>
     ) : connection.status === "requires_reauth" ? (
-      <form method="POST" action={`/api/connections/${connection.platform}/connect`}>
-        <button
-          type="submit"
-          class="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
-        >
-          Re-authenticate
-        </button>
-      </form>
+      <a
+        href={`/api/connections/${connection.platform}/connect`}
+        class="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+      >
+        Re-authenticate
+      </a>
     ) : null}
 
     {connection.status !== "disconnected" && (

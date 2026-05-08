@@ -99,14 +99,12 @@ const syncablePlatforms = data.connections.filter(
         <div class="rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
           <p class="text-gray-500 text-base mb-4">No platforms connected yet.</p>
           <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <form method="POST" action="/api/connections/strava/connect">
-              <button
-                type="submit"
-                class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
-              >
-                Connect Strava
-              </button>
-            </form>
+            <a
+              href="/api/connections/strava/connect"
+              class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+            >
+              Connect Strava
+            </a>
           </div>
         </div>
       ) : (

@@ -9,7 +9,7 @@
  * On success: 302 → platform OAuth authorization page
  * On failure: 302 → /dashboard?error=connect_failed
  */
-if (Astro.request.method !== "POST") {
+if (Astro.request.method !== "GET" && Astro.request.method !== "POST") {
   return new Response("Method Not Allowed", { status: 405 });
 }
 
