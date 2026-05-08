@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { Resource } from "sst";
 import { connections } from "@fithub/core";
 
