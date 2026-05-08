@@ -1,6 +1,13 @@
 import { issuer } from "@openauthjs/openauth";
 import { CodeProvider } from "@openauthjs/openauth/provider/code";
 import { PasswordProvider } from "@openauthjs/openauth/provider/password";
+import type {
+  PasswordLoginError,
+  PasswordRegisterError,
+  PasswordRegisterState,
+  PasswordChangeState,
+  PasswordChangeError,
+} from "@openauthjs/openauth/provider/password";
 import { CloudflareStorage } from "@openauthjs/openauth/storage/cloudflare";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
@@ -60,7 +67,7 @@ function buildIssuer(env: Env) {
 
     providers: {
       password: PasswordProvider({
-        sendCode: async (email, code) => sendEmail(email, code),
+        sendCode: async (email, code) => { await sendEmail(email, code); },
 
         validatePassword: (password) => {
           if (password.length < 8) return "Password must be at least 8 characters.";
@@ -165,11 +172,11 @@ const BASE_STYLE = `
   .stack{display:flex;flex-direction:column;gap:.75rem}
 `;
 
-type LoginError = import("@openauthjs/openauth/provider/password").PasswordLoginError | undefined;
-type RegisterError = import("@openauthjs/openauth/provider/password").PasswordRegisterError | undefined;
-type RegisterState = import("@openauthjs/openauth/provider/password").PasswordRegisterState;
-type ChangeState = import("@openauthjs/openauth/provider/password").PasswordChangeState;
-type ChangeError = import("@openauthjs/openauth/provider/password").PasswordChangeError | undefined;
+type LoginError = PasswordLoginError | undefined;
+type RegisterError = PasswordRegisterError | undefined;
+type RegisterState = PasswordRegisterState;
+type ChangeState = PasswordChangeState;
+type ChangeError = PasswordChangeError | undefined;
 
 function errorBanner(message: string): string {
   return `<p class="error">${message}</p>`;
