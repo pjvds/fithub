@@ -23,6 +23,18 @@ const SESSION_COOKIE_OPTS = {
   path: "/",
 };
 
+// Module-level singleton — persists for the lifetime of the worker isolate so
+// the OpenAuth JWKS/OIDC cache survives across requests.
+let _authClient: ReturnType<typeof createAuthClient> | null = null;
+function getAuthClient(): ReturnType<typeof createAuthClient> {
+  if (!_authClient) {
+    _authClient = createAuthClient({
+      issuer: import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space",
+    });
+  }
+  return _authClient;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, locals, cookies, redirect } = context;
 
@@ -36,8 +48,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return response;
   }
 
-  const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space";
-  const client = createAuthClient({ issuer: authWorkerUrl });
+  const client = getAuthClient();
 
   let accessToken = cookies.get("access_token")?.value;
   const refreshToken = cookies.get("refresh_token")?.value;

@@ -62,25 +62,26 @@ app.route("/api/webhooks", createWebhooksRouter());
 // Public status endpoint (Constitution §7) — no auth required
 app.route("/api/status", createStatusRouter());
 
+// Module-level singleton — persists for the lifetime of the worker isolate so
+// the OpenAuth JWKS/OIDC cache survives across requests.
+let _authClient: ReturnType<typeof createClient> | null = null;
+function getAuthClient(env: AppEnv["Bindings"]): ReturnType<typeof createClient> {
+  if (!_authClient) {
+    _authClient = createClient({
+      clientID: "api",
+      issuer: env.AUTH_WORKER_URL,
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        env.Auth.fetch(input as Parameters<typeof fetch>[0], init ?? {}),
+    });
+  }
+  return _authClient;
+}
+
 const authedRoutes = new Hono<AppEnv>();
 
 authedRoutes.use("*", async (c, next) => {
-  const authBinding = c.env.Auth;
-  const requestId = c.req.header("x-request-id");
-
-  // AUTH_WORKER_URL is injected as a plain env var in sst.config.ts — more
-  // reliable than Resource.Auth.url which depends on the SST Resource proxy.
+  const client = getAuthClient(c.env);
   const issuer = c.env.AUTH_WORKER_URL;
-
-  const client = createClient({
-    clientID: "api",
-    issuer,
-    fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-      const headers = new Headers((init as RequestInit | undefined)?.headers);
-      if (requestId) headers.set("x-request-id", requestId);
-      return authBinding.fetch(input as Parameters<typeof fetch>[0], { ...(init ?? {}), headers });
-    },
-  });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (authMiddleware({ client, issuer }) as (c: any, next: any) => Promise<Response>)(c, next);
