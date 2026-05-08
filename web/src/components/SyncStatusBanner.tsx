@@ -8,18 +8,16 @@ import { createApiClient } from "../lib/api-client";
 import type { SyncJob } from "@fithub/core";
 
 interface Props {
-  apiBaseUrl: string;
   correlationId: string;
-  accessToken?: string;
 }
 
 const POLL_INTERVAL_MS = 60_000;
 
-export default function SyncStatusBanner({ apiBaseUrl, correlationId, accessToken }: Props) {
+export default function SyncStatusBanner({ correlationId }: Props) {
   const [activeJob, setActiveJob] = useState<SyncJob | null>(null);
 
   const pollStatus = useCallback(async () => {
-    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId, ...(accessToken ? { accessToken } : {}) });
+    const client = createApiClient({ baseUrl: "", correlationId });
     try {
       const { jobs } = await client.getSyncHistory({ limit: 5 });
       const inProgress = jobs.find((j) => j.status === "pending");
@@ -27,7 +25,7 @@ export default function SyncStatusBanner({ apiBaseUrl, correlationId, accessToke
     } catch {
       // Silently ignore polling errors — don't surface a broken banner
     }
-  }, [apiBaseUrl, correlationId, accessToken]);
+  }, [correlationId]);
 
   useEffect(() => {
     pollStatus();

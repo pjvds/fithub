@@ -10,14 +10,12 @@ import type { ManualSyncResponse } from "@fithub/core";
 
 interface Props {
   platform: "strava";
-  apiBaseUrl: string;
   correlationId: string;
-  accessToken?: string;
 }
 
 type ButtonState = "idle" | "pending" | "success" | "error";
 
-export default function SyncNowButton({ platform, apiBaseUrl, correlationId, accessToken }: Props) {
+export default function SyncNowButton({ platform, correlationId }: Props) {
   const [state, setState] = useState<ButtonState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -34,7 +32,7 @@ export default function SyncNowButton({ platform, apiBaseUrl, correlationId, acc
     setState("pending");
     setErrorMessage(null);
 
-    const client = createApiClient({ baseUrl: apiBaseUrl, correlationId, ...(accessToken ? { accessToken } : {}) });
+    const client = createApiClient({ baseUrl: "", correlationId });
 
     try {
       const result: ManualSyncResponse = await client.triggerSync(platform);
@@ -48,7 +46,7 @@ export default function SyncNowButton({ platform, apiBaseUrl, correlationId, acc
       setErrorMessage(message);
       setState("error");
     }
-  }, [state, apiBaseUrl, correlationId, platform, accessToken]);
+  }, [correlationId, platform]);
 
   const platformLabel = "Strava";
 

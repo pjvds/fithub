@@ -83,7 +83,7 @@ const syncablePlatforms = data.connections.filter(
 
     <!-- Connections section -->
     {syncablePlatforms.length > 0 && (
-      <SyncStatusBanner client:load apiBaseUrl={apiBaseUrl} correlationId={correlationId} accessToken={accessToken} />
+      <SyncStatusBanner client:load correlationId={correlationId} />
     )}
 
     <section aria-labelledby="connections-heading">
@@ -129,9 +129,7 @@ const syncablePlatforms = data.connections.filter(
             <SyncNowButton
               client:load
               platform={conn.platform}
-              apiBaseUrl={apiBaseUrl}
               correlationId={correlationId}
-              accessToken={accessToken}
             />
           ))}
         </div>
