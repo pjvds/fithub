@@ -1,0 +1,59 @@
+---
+/**
+ * GET /api/connections/[platform]/oauth/callback
+ *
+ * Receives the OAuth redirect from the platform after the user grants (or
+ * denies) access. Forwards the authorization code + state to the backend
+ * callback endpoint, which performs the token exchange and stores the
+ * connection. Redirects back to the dashboard with a flash param.
+ *
+ * Success: 302 → /dashboard?connected=<platform>
+ * Denied:  302 → /dashboard?error=<strava_error_reason>
+ * Failure: 302 → /dashboard?error=connect_failed
+ */
+const { platform } = Astro.params;
+const { searchParams } = new URL(Astro.request.url);
+
+// Strava (or other platform) returned an error — user denied access or OAuth failed
+const oauthError = searchParams.get("error");
+if (oauthError) {
+  return Astro.redirect(`/dashboard?error=${encodeURIComponent(oauthError)}`, 302);
+}
+
+const code = searchParams.get("code");
+const state = searchParams.get("state");
+
+if (!code || !state) {
+  return Astro.redirect("/dashboard?error=missing_params", 302);
+}
+
+const accessToken = Astro.cookies.get("access_token")?.value ?? "";
+const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
+const correlationId = Astro.locals.correlationId;
+
+try {
+  const res = await fetch(`${apiBaseUrl}/api/connections/${platform}/oauth/callback`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+      "x-correlation-id": correlationId,
+    },
+    body: JSON.stringify({ code, state }),
+  });
+
+  if (!res.ok) {
+    // Surface backend-specific error codes when available (e.g. expired_state)
+    let errorCode = "connect_failed";
+    try {
+      const body = await res.json() as { code?: string };
+      if (body.code) errorCode = body.code;
+    } catch { /* ignore */ }
+    return Astro.redirect(`/dashboard?error=${encodeURIComponent(errorCode)}`, 302);
+  }
+
+  return Astro.redirect(`/dashboard?connected=${encodeURIComponent(platform ?? "strava")}`, 302);
+} catch {
+  return Astro.redirect("/dashboard?error=connect_failed", 302);
+}
+---

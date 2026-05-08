@@ -1,0 +1,43 @@
+---
+/**
+ * POST /api/connections/[platform]/disconnect
+ *
+ * Disconnects a platform connection. Reads the `delete_data` field from the
+ * form body and forwards it to the backend disconnect endpoint, which revokes
+ * the platform token and optionally deletes the user's synced activities.
+ *
+ * Success: 302 → /dashboard?disconnected=<platform>
+ * Failure: 302 → /dashboard?error=disconnect_failed
+ */
+if (Astro.request.method !== "POST") {
+  return new Response("Method Not Allowed", { status: 405 });
+}
+
+const { platform } = Astro.params;
+const formData = await Astro.request.formData();
+const deleteData = formData.get("delete_data") === "true";
+
+const accessToken = Astro.cookies.get("access_token")?.value ?? "";
+const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
+const correlationId = Astro.locals.correlationId;
+
+try {
+  const res = await fetch(`${apiBaseUrl}/api/connections/${platform}/disconnect`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+      "x-correlation-id": correlationId,
+    },
+    body: JSON.stringify({ delete_data: deleteData }),
+  });
+
+  if (!res.ok) {
+    return Astro.redirect("/dashboard?error=disconnect_failed", 302);
+  }
+
+  return Astro.redirect(`/dashboard?disconnected=${encodeURIComponent(platform ?? "strava")}`, 302);
+} catch {
+  return Astro.redirect("/dashboard?error=disconnect_failed", 302);
+}
+---

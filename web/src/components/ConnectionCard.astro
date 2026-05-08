@@ -5,13 +5,13 @@
  */
 import type { Connection } from "@fithub/core";
 import { formatRelativeTime } from "../lib/formatters";
+import DisconnectButton from "./DisconnectButton";
 
 interface Props {
   connection: Connection;
-  authWorkerUrl: string;
 }
 
-const { connection, authWorkerUrl } = Astro.props;
+const { connection } = Astro.props;
 
 const platformLabel: Record<string, string> = {
   strava: "Strava",
@@ -51,30 +51,31 @@ const lastSynced = connection.last_synced_at
 
   <div class="flex-shrink-0 flex flex-col gap-2">
     {connection.status === "disconnected" ? (
-      <a
-        href={`${authWorkerUrl}/connect/${connection.platform}`}
-        class="inline-flex items-center rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 transition-colors"
-      >
-        Connect
-      </a>
+      <form method="POST" action={`/api/connections/${connection.platform}/connect`}>
+        <button
+          type="submit"
+          class="inline-flex items-center rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 transition-colors"
+        >
+          Connect
+        </button>
+      </form>
     ) : connection.status === "requires_reauth" ? (
-      <a
-        href={`${authWorkerUrl}/connect/${connection.platform}`}
-        class="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
-      >
-        Re-authenticate
-      </a>
+      <form method="POST" action={`/api/connections/${connection.platform}/connect`}>
+        <button
+          type="submit"
+          class="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+        >
+          Re-authenticate
+        </button>
+      </form>
     ) : null}
 
     {connection.status !== "disconnected" && (
-      <form method="POST" action={`/api/connections/${connection.id}/disconnect`}>
-        <button
-          type="submit"
-          class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gray-400 transition-colors"
-        >
-          Disconnect
-        </button>
-      </form>
+      <DisconnectButton
+        client:load
+        platform={connection.platform}
+        platformLabel={label}
+      />
     )}
   </div>
 </div>

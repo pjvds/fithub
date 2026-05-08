@@ -16,8 +16,21 @@ import type { ConnectionsResponse } from "@fithub/core";
 const user = Astro.locals.user!;
 const correlationId: string = Astro.locals.correlationId;
 const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
-const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space";
 const accessToken = Astro.cookies.get("access_token")?.value ?? "";
+
+// Flash messages from OAuth redirect params
+const { searchParams } = new URL(Astro.request.url);
+const flashConnected = searchParams.get("connected");    // e.g. "strava"
+const flashDisconnected = searchParams.get("disconnected");
+const flashError = searchParams.get("error");
+
+const errorMessages: Record<string, string> = {
+  connect_failed:    "Could not connect your account. Please try again.",
+  disconnect_failed: "Could not disconnect your account. Please try again.",
+  access_denied:     "Connection cancelled — you did not grant access.",
+  expired_state:     "The connection link expired. Please try again.",
+  missing_params:    "Invalid callback. Please try connecting again.",
+};
 
 let data: ConnectionsResponse = { connections: [] };
 let fetchError: string | null = null;
@@ -29,9 +42,6 @@ try {
   fetchError = "Unable to load connections. Please refresh.";
 }
 
-const activeConnections = data.connections.filter(
-  (c) => c.status === "active" || c.status === "requires_reauth",
-);
 const syncablePlatforms = data.connections.filter(
   (c) => c.status === "active" && c.platform === "strava",
 ) as Array<{ platform: "strava"; id: string } & typeof data.connections[0]>;
@@ -54,6 +64,23 @@ const syncablePlatforms = data.connections.filter(
       </nav>
     </div>
 
+    <!-- Flash banners -->
+    {flashConnected && (
+      <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800" role="status">
+        🎉 <strong class="capitalize">{flashConnected}</strong> connected successfully!
+      </div>
+    )}
+    {flashDisconnected && (
+      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700" role="status">
+        <strong class="capitalize">{flashDisconnected}</strong> has been disconnected.
+      </div>
+    )}
+    {flashError && (
+      <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+        {errorMessages[flashError] ?? "Something went wrong. Please try again."}
+      </div>
+    )}
+
     <!-- Connections section -->
     {syncablePlatforms.length > 0 && (
       <SyncStatusBanner client:load apiBaseUrl={apiBaseUrl} correlationId={correlationId} accessToken={accessToken} />
@@ -72,19 +99,21 @@ const syncablePlatforms = data.connections.filter(
         <div class="rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
           <p class="text-gray-500 text-base mb-4">No platforms connected yet.</p>
           <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <a
-              href={`${authWorkerUrl}/connect/strava`}
-              class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
-            >
-              Connect Strava
-            </a>
+            <form method="POST" action="/api/connections/strava/connect">
+              <button
+                type="submit"
+                class="inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+              >
+                Connect Strava
+              </button>
+            </form>
           </div>
         </div>
       ) : (
         <ul class="space-y-3">
           {data.connections.map((connection) => (
             <li>
-              <ConnectionCard connection={connection} authWorkerUrl={authWorkerUrl} />
+              <ConnectionCard connection={connection} />
             </li>
           ))}
         </ul>

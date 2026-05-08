@@ -1,0 +1,40 @@
+---
+/**
+ * POST /api/connections/[platform]/connect
+ *
+ * Initiates a platform OAuth connection. Calls the backend initiate endpoint,
+ * which generates a PKCE challenge and returns an authUrl. Redirects the user
+ * to that URL to begin the OAuth flow on the platform's auth page.
+ *
+ * On success: 302 → platform OAuth authorization page
+ * On failure: 302 → /dashboard?error=connect_failed
+ */
+if (Astro.request.method !== "POST") {
+  return new Response("Method Not Allowed", { status: 405 });
+}
+
+const { platform } = Astro.params;
+const accessToken = Astro.cookies.get("access_token")?.value ?? "";
+const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
+const correlationId = Astro.locals.correlationId;
+
+try {
+  const res = await fetch(`${apiBaseUrl}/api/connections/${platform}/oauth/initiate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+      "x-correlation-id": correlationId,
+    },
+  });
+
+  if (!res.ok) {
+    return Astro.redirect("/dashboard?error=connect_failed", 302);
+  }
+
+  const { authUrl } = await res.json() as { authUrl: string };
+  return Astro.redirect(authUrl, 302);
+} catch {
+  return Astro.redirect("/dashboard?error=connect_failed", 302);
+}
+---
