@@ -17,6 +17,7 @@ export default $config({
     const stravaClientId = new sst.Secret("STRAVA_CLIENT_ID");
     const redirectBaseUrl = new sst.Secret("REDIRECT_BASE_URL");
     const emailProviderKey = new sst.Secret("EMAIL_PROVIDER_KEY");
+    const betterStackToken = new sst.Secret("BetterStackToken");
 
     const db = new sst.cloudflare.D1("FithubDb");
 
@@ -103,6 +104,15 @@ export default $config({
       transform: {
         worker: { logpush: true },
       },
+    });
+
+    // Cloudflare Logpush job — ships workers_trace_events to BetterStack Logs
+    new cloudflare.LogpushJob("BetterStackLogpush", {
+      accountId: sst.cloudflare.DEFAULT_ACCOUNT_ID,
+      dataset: "workers_trace_events",
+      destinationConf: $interpolate`https://in.logs.betterstack.com?header_Authorization=Bearer%20${betterStackToken.value}`,
+      enabled: true,
+      name: "fithub-workers-betterstack",
     });
 
     // Web frontend — Astro SSR app deployed as a Cloudflare Worker

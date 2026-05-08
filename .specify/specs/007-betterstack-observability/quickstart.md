@@ -64,25 +64,7 @@ All 5 Workers already have `logpush: true` in `sst.config.ts`. Once deployed, Wo
 
 ---
 
-## Step 4: Create Uptime Monitors (optional)
-
-Get your BetterStack **API key** from the BetterStack dashboard (Settings → API).
-
-```bash
-CLOUDFLARE_API_TOKEN=<cf-token> \
-CLOUDFLARE_ACCOUNT_ID=<account-id> \
-BETTER_STACK_TOKEN=<source-token> \
-BETTERSTACK_API_KEY=<api-key> \
-API_URL=https://api.fithub.space \
-AUTH_URL=https://auth.fithub.space \
-npx tsx scripts/setup-betterstack.ts
-```
-
-This creates uptime monitors for both endpoints. Pass only `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`/`BETTER_STACK_TOKEN` to skip monitor creation.
-
----
-
-## Step 5: Configure Error-Rate Alert (manual)
+## Step 4: Configure Error-Rate Alert (manual)
 
 In BetterStack Logs dashboard:
 
