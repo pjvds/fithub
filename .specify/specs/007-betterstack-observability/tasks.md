@@ -6,7 +6,7 @@
 
 **Plan Reference:** `.specify/specs/007-betterstack-observability/plan.md`
 
-**Breakdown Date:** 2026-05-08
+**Breakdown Date:** 2026-05-08 (revised after Logpush pivot)
 
 **Breakdown Author:** Copilot
 
@@ -16,13 +16,13 @@
 
 ## Task Summary
 
-**Total Tasks:** 15
+**Total Tasks:** 12
 
-**Critical Path Length:** 3 phases (Phase 1 → Phase 2 → Polish)
+**Critical Path Length:** 3 phases (Setup → Log Shipping → Monitoring & Polish)
 
-**Parallel Opportunities:** T002 + T009 (after T001 and T003/T004 are done, Tail Worker impl and setup script are independent)
+**Parallel Opportunities:** T003 (setup script) is independent of T001/T002 (SST changes)
 
-**Priority Blockers:** T001 (secret config), T002 (Tail Worker), T003/T004 (SST wiring)
+**Priority Blockers:** T001 (logpush enabled on Workers), T002 (Logpush job created)
 
 ---
 
@@ -37,41 +37,40 @@
 
 ---
 
-## Phase 1: Setup
+## Phase 1: SST — Enable Logpush on All Workers
 
-> SST secret and Tail Worker resource declared before any implementation.
+> `logpush: true` must be set on each Worker script before Cloudflare will include it in Logpush jobs.
 
-- [ ] T001 Add `BetterStackToken` SST secret declaration to `sst.config.ts`; add `BETTER_STACK_TOKEN` to the "Verify required secrets" check, "Seed SST app secrets" `sst secret set` call, and env blocks in `.github/workflows/ci.yml` (GitHub Environment secret `BETTER_STACK_TOKEN` → SST secret `BetterStackToken`)
-
----
-
-## Phase 2: Foundational — Tail Worker & SST Wiring
-
-> All producing Workers must have `tailConsumers` before logs can flow.
-
-- [ ] T002 Create Tail Worker handler in `packages/functions/src/tail/index.ts` (receives `TraceItem[]`, extracts JSON log lines, POSTs NDJSON to BetterStack via `BetterStackToken` binding; swallows non-2xx silently and emits `console.error("tail.forward.error")`)
-- [ ] T003 Add `TailWorker` Cloudflare Worker resource to `sst.config.ts` (entry: `packages/functions/src/tail/index.ts`, binds `BetterStackToken` secret)
-- [ ] T004 Add `tailConsumers` binding to all 5 producing Workers in `sst.config.ts` via `transform.worker`: Api, Auth, SyncWorker, OutboxRelay, Scheduler → point to `TailWorker.name`
-- [ ] T005 [P] Write unit tests for Tail Worker normalisation in `packages/functions/test/tail.test.ts`: (a) valid `TraceItem[]` with JSON log lines → correct NDJSON output; (b) non-JSON console output → entry skipped; (c) BetterStack non-2xx → no throw, `console.error` called; (d) empty `logs[]` → no HTTP call made
+- [x] T001 Add `logpush: true` to all 5 Workers in `sst.config.ts` via `transform.worker`: Auth, Api (merged into existing `serviceBindings` transform), OutboxRelay, Scheduler, SyncWorker
 
 ---
 
-## Phase 3: US1 — Log Shipping
+## Phase 2: Cloudflare Logpush Job Setup
+
+> Create the Logpush job that delivers Workers Trace Events to BetterStack.
+
+- [ ] T002 [US1] Run `scripts/setup-betterstack.ts` to create the Cloudflare Logpush job (`dataset: "workers_trace_events"`) pointing at the BetterStack HTTPS ingest endpoint; confirm job appears in the Cloudflare dashboard as enabled
+- [ ] T003 Create `scripts/setup-betterstack.ts` — idempotent script that: (1) creates Cloudflare Logpush job via `POST /accounts/{id}/logpush/jobs` with `dataset: "workers_trace_events"` and `destination_conf: "https://in.logs.betterstack.com?header_Authorization=Bearer%20TOKEN"`; (2) creates BetterStack Uptime monitors; supports `--dry-run`; reads `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `BETTER_STACK_TOKEN`, `BETTERSTACK_API_KEY` from env
+
+> Note: T003 already complete (script created at `scripts/setup-betterstack.ts`).
+
+---
+
+## Phase 3: US1 — Log Shipping Verification
 
 > Verify all FitHub Worker logs ship to BetterStack and AC1/AC2/AC6/AC8 pass.
 
-- [ ] T006 [US1] Deploy to dev stage (`sst deploy`) after setting `BetterStackToken` secret; trigger `GET /api/status` and confirm a structured log entry appears in BetterStack Logs within 60 seconds (AC1)
-- [ ] T007 [US1] Audit BetterStack log entries from the test request in T006: verify `event`, `level`, `service`, `userId`, `correlationId` fields are present and queryable (AC2); verify no email, token, name, or raw payload visible (AC6)
-- [ ] T008 [P] [US1] Verify AC8: run `git grep -r "BetterStackToken" --include="*.ts" --include="*.env*"` and confirm no plaintext token appears anywhere in committed files
+- [ ] T004 [US1] Deploy to dev stage (`sst deploy`) after T001 is deployed; trigger `GET /api/status` and confirm a structured log entry appears in BetterStack Logs within 60 seconds (AC1)
+- [ ] T005 [US1] Audit BetterStack log entries from T004: verify `event`, `level`, `service`, `userId`, `correlationId` fields are present and queryable (AC2); verify no email, token, name, or raw payload visible (AC6)
+- [ ] T006 [P] [US1] Verify AC8: run `git grep -r "BETTER_STACK_TOKEN\|betterstack" --include="*.ts" --include="*.env*"` and confirm no plaintext token appears in committed files
 
 ---
 
 ## Phase 4: US2 — Uptime Monitoring
 
-> Create reproducible setup script for BetterStack uptime monitors.
+> Create BetterStack Uptime monitors via the setup script.
 
-- [ ] T009 [US2] Create `scripts/setup-betterstack.ts`: idempotent script that calls BetterStack Uptime API (`POST /api/v2/monitors`) to create two monitors — `FitHub API` → `https://api.fithub.space/api/status` (1-min interval, keyword check: `"status":"ok"`) and `FitHub Auth` → `https://auth.fithub.space` (1-min interval, expect 200); supports `--dry-run` flag that prints intended calls without executing; reads `BETTER_STACK_UPTIME_TOKEN` from env
-- [ ] T010 [US2] Run `BETTER_STACK_UPTIME_TOKEN=<token> npx tsx scripts/setup-betterstack.ts --dry-run` to validate output, then run without `--dry-run`; confirm both monitors appear in BetterStack Uptime dashboard and show green status within 2 minutes of healthy deploy (AC3, AC4)
+- [ ] T007 [US2] Run setup script with `BETTERSTACK_API_KEY` set to create uptime monitors for `FitHub API /health` and `FitHub Auth /health`; confirm both monitors appear in the BetterStack Uptime dashboard and show green status (AC3, AC4)
 
 ---
 
@@ -79,7 +78,7 @@
 
 > Configure BetterStack alert policy for elevated error rates.
 
-- [ ] T011 [US3] In BetterStack Logs dashboard for `fithub-dev` (and `fithub-prod`) source: create alert — query `level = "error"`, threshold `> 10 occurrences in 1 minute`, notification channel = email/Slack; document the exact alert configuration in `docs/runbook.md` so it can be recreated for new environments (AC5); note: BetterStack Logs alert creation is not yet available via API, so this is a manual UI step
+- [ ] T008 [US3] In BetterStack Logs dashboard for the `fithub-dev` source: create alert — query `level = "error"`, threshold `> 10 occurrences in 1 minute`, notification channel = email/Slack; document the exact alert configuration in `docs/runbook.md` (AC5); note: BetterStack Logs alert creation is not yet available via API — manual UI step
 
 ---
 
@@ -87,88 +86,66 @@
 
 > Confirm BetterStack search capabilities cover developer debugging needs.
 
-- [ ] T012 [US4] In BetterStack Logs, verify the following queries return correct results against real log entries from T006: `userId:"<test-uuid>"` → returns entries for that user; `correlationId:"<id>"` → traces a full request; `event:status.queried` → returns the specific event; `service:"api"` → filters to API Worker only; `level:error` → returns only error-level entries (AC2)
+- [ ] T009 [US4] In BetterStack Logs, verify queries against real entries from T004: `userId:"<uuid>"`, `correlationId:"<id>"`, `event:status.queried`, `service:"api"`, `level:error` all return expected results (AC2)
 
 ---
 
 ## Phase 7: Polish & Closure
 
-- [ ] T013 Create `docs/runbook.md` covering: (a) log search queries cheat-sheet (`userId`, `correlationId`, `event`, `service`, `level:error`), (b) how to acknowledge/silence an alert, (c) incident escalation steps, (d) note on BetterStack data handling (third-party log storage, 30-day retention), (e) how to onboard a new environment (set secret + deploy + run setup script) (AC7, AC9)
-- [ ] T014 Mark T053 as `[X]` in `.specify/specs/000-backend-foundation/tasks.md` (closes NFR-6 and Constitution §8 compliance gate)
-- [ ] T015 [P] Verify all acceptance criteria AC1–AC9 against the deployed dev environment; update spec.md Status from `Draft` to `Implemented`
+- [ ] T010 Create `docs/runbook.md` covering: (a) log search queries cheat-sheet, (b) how to acknowledge/silence an alert, (c) incident escalation steps, (d) BetterStack data handling note (third-party storage, 30-day retention), (e) how to onboard a new environment (create BetterStack source, run setup script, deploy) (AC7, AC9)
+- [ ] T011 Mark T053 as `[X]` in `.specify/specs/000-backend-foundation/tasks.md` (closes NFR-6 and Constitution §8 compliance gate)
+- [ ] T012 [P] Verify all acceptance criteria AC1–AC9 against the deployed dev environment; update spec.md Status from `Draft` to `Implemented`
 
 ---
 
 ## Task Dependency Graph
 
 ```
-T001 (SST secret declared)
-  │
-  ├──► T002 (Tail Worker impl)
-  │       │
-  │       ├──► T005 [P] (unit tests — parallel, same files)
-  │       │
-  │       └──► T003 (TailWorker resource in SST)
-  │               │
-  │               └──► T004 (tailConsumers on 5 Workers)
-  │                       │
-  │                       └──► T006 (deploy + smoke test) ──► T007 ──► T008 [P]
-  │                                                             │
-  │                       ┌────────────────────────────────────┘
-  │                       │
-  ├──► T009 (setup script) ──► T010 (run monitors)
-  │
-  └──► T011 (alert policy — manual, parallel with T009/T010)
+T001 (logpush: true on 5 Workers) ──► T004 (deploy + smoke test) ──► T005 ──► T006 [P]
 
-T010 + T011 + T012 ──► T013 (runbook) ──► T014 (close T053) ──► T015 (AC checklist)
+T003 (setup script) ──► T002 (run: create Logpush job + monitors) ──► T007 (uptime monitors)
+
+T004 + T007 + T008 (alert policy) + T009 (query verification)
+  └──► T010 (runbook) ──► T011 (close T053) ──► T012 (AC checklist)
 ```
 
 ---
 
 ## Quick Reference Checklist
 
-**Phase 1 — Setup**
-- [ ] T001 SST secret declaration
+**Phase 1 — SST logpush**
+- [x] T001 logpush: true on all 5 Workers
 
-**Phase 2 — Foundational**
-- [ ] T002 Tail Worker implementation
-- [ ] T003 TailWorker SST resource
-- [ ] T004 tailConsumers on 5 Workers
-- [ ] T005 Unit tests
+**Phase 2 — Logpush job**
+- [ ] T002 Run setup script
+- [x] T003 Setup script created
 
 **Phase 3 — US1: Log Shipping**
-- [ ] T006 Deploy + smoke test
-- [ ] T007 Field audit
-- [ ] T008 Secret hygiene check
+- [ ] T004 Deploy + smoke test
+- [ ] T005 Field audit
+- [ ] T006 Secret hygiene check
 
 **Phase 4 — US2: Uptime Monitoring**
-- [ ] T009 Setup script
-- [ ] T010 Run monitors
+- [ ] T007 Run monitors
 
 **Phase 5 — US3: Error Rate Alerting**
-- [ ] T011 Alert policy
+- [ ] T008 Alert policy
 
 **Phase 6 — US4: Developer Log Querying**
-- [ ] T012 Query verification
+- [ ] T009 Query verification
 
 **Phase 7 — Polish**
-- [ ] T013 Runbook
-- [ ] T014 Close T053
-- [ ] T015 AC1–AC9 verification
+- [ ] T010 Runbook
+- [ ] T011 Close T053
+- [ ] T012 AC1–AC9 verification
 
 ---
 
 ## Implementation Strategy
 
-**MVP Scope (US1 only):** T001 → T002 → T003 → T004 → T005 → T006 → T007 → T008
+**MVP Scope (US1 only):** T001 (done) → T003 (done) → T002 (run script) → T004 → T005 → T006
 
 Completing US1 alone satisfies AC1, AC2, AC6, AC8 and makes logs immediately searchable in BetterStack. US2–US4 and the polish phase can follow in any order once US1 is green.
-
-**Suggested delivery order:**
-1. US1 (T001–T008) — log shipping live
-2. US2 (T009–T010) + US3 (T011) in parallel — monitoring and alerting
-3. US4 (T012) — verify queryability against real data
-4. Polish (T013–T015) — runbook + T053 closure
 
 ---
 
@@ -178,7 +155,7 @@ Completing US1 alone satisfies AC1, AC2, AC6, AC8 and makes logs immediately sea
 - **Implementation Plan:** `.specify/specs/007-betterstack-observability/plan.md`
 - **Research:** `.specify/specs/007-betterstack-observability/research.md`
 - **Data Model:** `.specify/specs/007-betterstack-observability/data-model.md`
-- **Contracts:** `.specify/specs/007-betterstack-observability/contracts/tail-worker-contract.md`
+- **Setup Script:** `scripts/setup-betterstack.ts`
 - **Quickstart:** `.specify/specs/007-betterstack-observability/quickstart.md`
 - **Constitution:** `.specify/memory/constitution.md`
 - **Closes:** `.specify/specs/000-backend-foundation/tasks.md` T053

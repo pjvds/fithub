@@ -5,30 +5,41 @@
 
 ---
 
-## Decision 1: Log Shipping Mechanism — Tail Worker (not Logpush)
+## Decision 1: Log Shipping Mechanism — Cloudflare Logpush (not Tail Worker)
 
-**Decision:** Use a Cloudflare **Tail Worker** to forward logs to BetterStack.
+**Decision:** Use **Cloudflare Logpush** (Workers Trace Events dataset) to forward logs to BetterStack.
 
 **Rationale:**
-- Cloudflare Logpush HTTP destinations require a Business or Enterprise plan. FitHub runs on the Workers free/paid tier — Logpush is not available without upgrading.
-- Tail Workers are available on all plans. A Tail Worker is a normal Cloudflare Worker that declares itself a `tail_consumer` for other Workers; Cloudflare pushes `TraceItem[]` arrays to it after each invocation.
-- A Tail Worker is ~20 lines of code: receive `TraceItem[]`, flatten log entries, POST NDJSON to BetterStack's HTTP source endpoint.
-- Zero impact on the request hot path — Tail Workers run asynchronously after the producing Worker finishes.
+- Cloudflare Logpush for Workers Trace Events is available on the **Workers Paid plan** — no Business or Enterprise tier required.
+- Zero custom code: Cloudflare natively delivers structured Worker invocation traces (including `console.*` output) to any HTTPS destination.
+- The BetterStack HTTPS ingest endpoint is a standard Logpush destination — configure once, works for all Workers.
+- Workers must have `logpush: true` set in script metadata (one boolean per Worker).
+- No Tail Worker needed. Tail Workers are only preferable when custom log transformation is required at ingestion time.
+
+**Implementation:**
+1. Set `logpush: true` on each Worker script via `transform.worker: { logpush: true }` in SST Ion.
+2. Create one Cloudflare Logpush job targeting BetterStack's HTTPS endpoint:
+   ```
+   https://in.logs.betterstack.com?header_Authorization=Bearer%20<TOKEN>
+   ```
+3. Run the one-time setup script `scripts/setup-betterstack.ts`.
 
 **Alternatives Considered:**
-- **Cloudflare Logpush**: Requires Business+ plan. Rejected (cost).
-- **In-Worker HTTP fetch to BetterStack**: Logging directly from each Worker adds latency and couples every Worker to BetterStack availability. Rejected.
+- **Tail Worker**: Evaluated first, then rejected after consulting BetterStack's official Cloudflare integration docs. The BetterStack docs explicitly recommend Logpush. Tail Workers add unnecessary custom code and maintenance overhead.
+- **In-Worker HTTP fetch to BetterStack**: Adds latency and couples each Worker to BetterStack availability. Rejected.
 - **Axiom**: Functionally equivalent. BetterStack preferred because account already exists.
+
+**Note:** An initial incorrect research entry stated Logpush required Business/Enterprise plan. This was wrong. Workers Paid plan includes Logpush for `workers_trace_events`. This has been verified against BetterStack docs at https://betterstack.com/docs/logs/cloudflare/logpush/ and Cloudflare's Logpush HTTPS destination documentation.
 
 ---
 
-## Decision 2: BetterStack Source Format — HTTP Source (NDJSON)
+## Decision 2: BetterStack Source Format — HTTPS Logpush (JSON)
 
-**Decision:** Create a BetterStack **HTTP source** with NDJSON ingestion. The Tail Worker batches log entries per invocation and POSTs them as NDJSON (`Content-Type: application/x-ndjson`) to `https://in.logs.betterstack.com`.
+**Decision:** Create a BetterStack **HTTP source** and configure Cloudflare Logpush to deliver `workers_trace_events` to it.
 
 **Rationale:**
-- BetterStack's HTTP source accepts NDJSON and maps JSON fields automatically — `event`, `level`, `service`, `userId`, `correlationId` all become queryable fields without any schema configuration.
-- The existing `Logger` emits exactly this format already. No transformation needed.
+- BetterStack's HTTP source accepts JSON from Logpush automatically — `event`, `level`, `service`, `userId`, `correlationId` become queryable fields without schema configuration.
+- The existing `Logger` emits structured JSON via `console.*` calls, which Cloudflare captures in `TraceItem.logs[].message`.
 - Per-stage sources (`fithub-dev`, `fithub-prod`) keep staging noise isolated from production alerts.
 
 **Alternatives Considered:**
@@ -43,12 +54,12 @@
 
 **Rationale:**
 - Manual UI clicks are not reproducible. A setup script documents intent and can be re-run for new environments.
-- BetterStack's Uptime API (`api.betterstack.com/api/v2/monitors`) supports CRUD for monitors with full configuration.
+- BetterStack's Uptime API (`uptime.betterstack.com/api/v2/monitors`) supports CRUD for monitors.
 - The script runs once per environment and is idempotent (check-before-create).
 
 **Monitors to create:**
-1. `FitHub API` — `GET https://api.fithub.space/api/status` every 1 min
-2. `FitHub Auth` — `GET https://auth.fithub.space` every 1 min (expects HTTP 200)
+1. `FitHub API` — `GET https://api.fithub.space/health` every 3 min
+2. `FitHub Auth` — `GET https://auth.fithub.space/health` every 3 min
 
 **Alert policy:** 2 consecutive failures → page (reduces false positives from transient Cloudflare edge blips).
 
@@ -60,79 +71,68 @@
 
 **Rationale:**
 - BetterStack Logs supports alert policies with log-query conditions.
-- A count threshold of 10/min is reasonable for a low-traffic early-stage service; 1 error per minute in normal operation is likely noise, 10+ indicates a real problem.
+- A count threshold of 10/min is reasonable for a low-traffic early-stage service.
 - Threshold is documented and can be tuned without code changes.
 
 ---
 
-## Decision 5: SST Secret for BetterStack Source Token
+## Decision 5: BetterStack Token Storage
 
-**Decision:** Store the BetterStack source ingest token as `sst secret set BetterStackToken <value>`. The Tail Worker receives it as a bound secret.
+**Decision:** The BetterStack ingest token is embedded in the Logpush job `destination_conf` URL, stored inside Cloudflare's Logpush configuration — not in Workers env vars, not as an SST secret. The token is only needed at setup-script runtime and is supplied via the `BETTER_STACK_TOKEN` environment variable.
 
 **Rationale:**
-- Consistent with existing SST secret pattern (`TOKEN_MASTER_KEY`, `STRAVA_CLIENT_SECRET`, etc.).
-- Not committed to the repository.
-- Per-stage: `BetterStackToken` is set separately for dev and prod.
+- Logpush jobs authenticate via the `destination_conf` URL using `header_Authorization=Bearer%20TOKEN` query parameter syntax. Cloudflare stores this internally.
+- No SST secret needed. No Worker binding needed. Zero runtime overhead.
+- The GitHub Environment secret `BETTER_STACK_TOKEN` is used only when running `scripts/setup-betterstack.ts` manually — it is not needed by the deploy pipeline.
 
 ---
 
-## Tail Worker: TraceItem Shape (Cloudflare)
+## Cloudflare Logpush: Enabling on a Worker (SST Ion)
 
-Cloudflare delivers `TraceItem[]` to Tail Workers. Relevant fields:
-
-```typescript
-interface TraceItem {
-  scriptName: string;           // Worker name (e.g. "Api", "SyncWorker")
-  outcome: "ok" | "exception" | "exceededCpu" | "canceled" | "unknown";
-  logs: TraceLog[];             // console.* calls
-  exceptions: TraceException[]; // uncaught exceptions
-}
-
-interface TraceLog {
-  message: unknown[];           // arguments passed to console.log/warn/error
-  level: string;                // "log", "warn", "error", "debug"
-  timestamp: number;            // milliseconds since epoch
-}
-```
-
-The Tail Worker extracts `logs[].message[0]` (already a JSON string from our `Logger`), parses it, adds `scriptName` as `worker` field, then POSTs to BetterStack.
-
----
-
-## Cloudflare Tail Worker Binding in SST Ion
-
-SST Ion uses the Cloudflare Pulumi provider. To bind a Tail Worker to existing Workers, use `transform.worker` to inject `tailConsumers`:
+Add `logpush: true` to the Worker's `transform.worker` in `sst.config.ts`:
 
 ```typescript
-const tailWorker = new sst.cloudflare.Worker("TailWorker", {
-  handler: "packages/functions/src/tail/index.ts",
-  link: [betterStackToken],
-});
-
-// On each producing Worker:
 const api = new sst.cloudflare.Worker("Api", {
-  // ...existing config...
+  handler: "packages/functions/src/api/index.ts",
+  // ...
   transform: {
-    worker: (args) => {
-      args.tailConsumers = [{ service: tailWorker.name }];
+    worker: {
+      logpush: true,
+      // other transform props...
     },
   },
 });
 ```
 
-`tailConsumers` is a native Cloudflare Pulumi provider property on `cloudflare.WorkerScript`.
+This sets `logpush: true` on the underlying `cloudflare.WorkerScript` Pulumi resource, which enables Cloudflare to include this Worker's traces in Logpush jobs with `dataset: "workers_trace_events"`.
 
 ---
 
-## BetterStack HTTP Source Ingest Format
+## Cloudflare Logpush Job API
 
 ```
-POST https://in.logs.betterstack.com
-Authorization: Bearer <source-token>
-Content-Type: application/x-ndjson
+POST https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/logpush/jobs
+Authorization: Bearer <CF_API_TOKEN>
+Content-Type: application/json
 
-{"ts":"2026-05-08T10:00:00.000Z","level":"info","event":"activity.ingested","service":"sync-worker","userId":"abc123"}
-{"ts":"2026-05-08T10:00:01.000Z","level":"error","event":"sync.job.failed","service":"sync-worker","userId":"abc123","code":"STRAVA_TOKEN_EXPIRED"}
+{
+  "name": "fithub-workers-betterstack",
+  "dataset": "workers_trace_events",
+  "destination_conf": "https://in.logs.betterstack.com?header_Authorization=Bearer%20<BETTER_STACK_TOKEN>",
+  "enabled": true
+}
+```
+
+The `header_*` query parameter syntax causes Cloudflare to inject `Authorization: Bearer <TOKEN>` as an HTTP header when delivering logs to BetterStack.
+
+---
+
+## BetterStack Log Entry Format
+
+Cloudflare delivers `console.*` output as the log body. With FitHub's structured logger, each entry arrives as:
+
+```json
+{"ts":"2026-05-08T10:00:00.000Z","level":"info","event":"activity.ingested","service":"sync-worker","userId":"abc123","correlationId":"req-xyz"}
 ```
 
 Fields map directly to BetterStack queryable attributes — no schema configuration required.

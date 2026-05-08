@@ -46,6 +46,9 @@ export default $config({
       link: [authKv, db, emailProviderKey],
       url: true,
       domain: authDomain,
+      transform: {
+        worker: { logpush: true },
+      },
     });
 
     const apiSecrets = [
@@ -65,6 +68,7 @@ export default $config({
       transform: {
         worker: {
           serviceBindings: [{ name: "Auth", service: auth.name }],
+          logpush: true,
         },
       },
     });
@@ -72,6 +76,9 @@ export default $config({
     const outboxRelay = new sst.cloudflare.Worker("OutboxRelay", {
       handler: "packages/functions/src/outbox-relay/index.ts",
       link: [db, eventBus],
+      transform: {
+        worker: { logpush: true },
+      },
     });
 
     // Scheduler Worker — cron triggers:
@@ -82,6 +89,9 @@ export default $config({
     const scheduler = new sst.cloudflare.Worker("Scheduler", {
       handler: "packages/functions/src/scheduler/index.ts",
       link: [db, tokenMasterKey, stravaClientSecret],
+      transform: {
+        worker: { logpush: true },
+      },
     });
 
     // Sync worker — queue consumer for sync-jobs and retry-jobs
@@ -90,6 +100,9 @@ export default $config({
     const syncWorker = new sst.cloudflare.Worker("SyncWorker", {
       handler: "packages/functions/src/worker/index.ts",
       link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientSecret],
+      transform: {
+        worker: { logpush: true },
+      },
     });
 
     // Web frontend — Astro SSR app deployed as a Cloudflare Worker

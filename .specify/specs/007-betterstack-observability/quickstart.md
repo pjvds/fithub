@@ -4,35 +4,51 @@
 
 ---
 
+## How it works
+
+FitHub uses **Cloudflare Logpush** to stream Worker invocation traces directly to BetterStack — no custom code, no Tail Worker. Each of the 5 Workers has `logpush: true` in its script metadata; Cloudflare delivers structured `workers_trace_events` to BetterStack's HTTPS ingest endpoint automatically after each Worker invocation.
+
+---
+
 ## Prerequisites
 
 - BetterStack account created (confirmed)
 - FitHub deployed to at least the `dev` stage (`sst deploy`)
-- `GET /api/status` endpoint live (T064 — already shipped)
-- `BETTER_STACK_TOKEN` added as a GitHub Environment secret under **Settings → Environments → dev → Environment secrets**
+- `GET /api/status` endpoint live
+- Cloudflare Workers **Paid plan** (required for Logpush)
 
 ---
 
-## Step 1: Create BetterStack Log Sources
+## Step 1: Create BetterStack Log Source
 
 In the BetterStack dashboard:
 
 1. Go to **Logs → Sources → Connect source**
-2. Choose **HTTP source**
-3. Name it `fithub-dev` (create a second one `fithub-prod` for production)
-4. Copy the **source token** — you'll need this in Step 2
+2. Choose **HTTP source** (or search for "Cloudflare")
+3. Name it `fithub-dev` (create a second `fithub-prod` for production)
+4. Copy the **source token** — you'll need it in Step 2
 
 ---
 
-## Step 2: Set the Secret in GitHub
+## Step 2: Run Setup Script
 
-Add the source token as a GitHub Environment secret:
+The `scripts/setup-betterstack.ts` script creates the Cloudflare Logpush job pointing at BetterStack. Run it once per environment:
 
-1. Go to your repo → **Settings → Environments → dev → Environment secrets**
-2. Add secret: `BETTER_STACK_TOKEN` = `<your-dev-source-token>`
-3. Repeat for the `production` environment with the prod source token
+```bash
+# Dry run first to preview
+CLOUDFLARE_API_TOKEN=<cf-token> \
+CLOUDFLARE_ACCOUNT_ID=<account-id> \
+BETTER_STACK_TOKEN=<source-token> \
+npx tsx scripts/setup-betterstack.ts --dry-run
 
-The CI/CD pipeline (`ci.yml`) will call `sst secret set BetterStackToken` automatically on the next deploy.
+# If output looks correct, run for real
+CLOUDFLARE_API_TOKEN=<cf-token> \
+CLOUDFLARE_ACCOUNT_ID=<account-id> \
+BETTER_STACK_TOKEN=<source-token> \
+npx tsx scripts/setup-betterstack.ts
+```
+
+This creates a Cloudflare Logpush job for `workers_trace_events` → BetterStack HTTPS endpoint.
 
 ---
 
@@ -42,30 +58,27 @@ The CI/CD pipeline (`ci.yml`) will call `sst secret set BetterStackToken` automa
 sst deploy
 ```
 
-This deploys the Tail Worker and binds it to all 5 producing Workers. Logs will start appearing in BetterStack immediately.
+All 5 Workers already have `logpush: true` in `sst.config.ts`. Once deployed, Worker logs will flow through Cloudflare Logpush to BetterStack automatically.
 
-**Verify:** Trigger a request to `GET /api/status` and check BetterStack Logs for an entry with `event: "status.queried"` (or any log from the API Worker) within 60 seconds.
+**Verify:** Trigger `GET /api/status` and check BetterStack Logs for entries within 60 seconds.
 
 ---
 
-## Step 4: Create Uptime Monitors
+## Step 4: Create Uptime Monitors (optional)
 
-Get your BetterStack **Uptime API token** from the BetterStack dashboard (Settings → API).
+Get your BetterStack **API key** from the BetterStack dashboard (Settings → API).
 
 ```bash
-# Install dependencies (tsx for running TypeScript scripts)
-npm install -g tsx
-
-# Run the setup script (dry-run first)
-BETTER_STACK_UPTIME_TOKEN=<your-uptime-api-token> npx tsx scripts/setup-betterstack.ts --dry-run
-
-# If output looks correct, run for real
-BETTER_STACK_UPTIME_TOKEN=<your-uptime-api-token> npx tsx scripts/setup-betterstack.ts
+CLOUDFLARE_API_TOKEN=<cf-token> \
+CLOUDFLARE_ACCOUNT_ID=<account-id> \
+BETTER_STACK_TOKEN=<source-token> \
+BETTERSTACK_API_KEY=<api-key> \
+API_URL=https://api.fithub.space \
+AUTH_URL=https://auth.fithub.space \
+npx tsx scripts/setup-betterstack.ts
 ```
 
-This creates:
-- `FitHub API` monitor → `https://api.fithub.space/api/status` (every 1 min)
-- `FitHub Auth` monitor → `https://auth.fithub.space` (every 1 min)
+This creates uptime monitors for both endpoints. Pass only `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`/`BETTER_STACK_TOKEN` to skip monitor creation.
 
 ---
 
