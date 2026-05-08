@@ -18,9 +18,6 @@ interface Env {
 function buildIssuer(env: Env) {
   const db = drizzle(env.FithubDb);
 
-  const isProduction =
-    (env as unknown as { ENVIRONMENT?: string }).ENVIRONMENT === "production";
-
   return issuer({
     subjects,
     storage: CloudflareStorage({ namespace: env.AuthKv as never }),
@@ -36,11 +33,6 @@ function buildIssuer(env: Env) {
     providers: {
       email: CodeProvider({
         sendCode: async (claims, code) => {
-          if (!isProduction) {
-            console.log(`[auth] magic code for ${claims.email}: ${code}`);
-            return;
-          }
-
           const apiKey =
             (Resource as unknown as { EmailProviderKey?: { value: string } })
               .EmailProviderKey?.value ?? env.EMAIL_PROVIDER_KEY;
@@ -59,12 +51,12 @@ function buildIssuer(env: Env) {
 
           if (error) {
             console.error(
-              JSON.stringify({ event: LogEvent.authMagicLinkSendFailed, email: claims.email, error }),
+              JSON.stringify({ event: LogEvent.authMagicLinkSendFailed, error }),
             );
             return { type: "invalid_claim" as const, key: "email", value: claims.email as string };
           }
 
-          console.log(JSON.stringify({ event: LogEvent.authMagicLinkSent, email: claims.email }));
+          console.log(JSON.stringify({ event: LogEvent.authMagicLinkSent }));
         },
 
         request: async (_req, state, _form, error) => {
