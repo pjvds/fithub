@@ -6,6 +6,7 @@ import {
   activitySources,
   appendOutbox,
   connections,
+  syncJobs,
   createLogger,
   decryptToken,
   ErrorCode,
@@ -235,6 +236,12 @@ export default {
           }),
         );
 
+        // Mark job as succeeded in the DB
+        await db
+          .update(syncJobs)
+          .set({ status: "success", activitiesSynced: newActivities, endedAt: new Date() })
+          .where(eq(syncJobs.id, job.jobId));
+
         log.info(LogEvent.syncJobCompleted, {
           userId: job.userId,
           platform: job.platform,
@@ -255,6 +262,18 @@ export default {
           attempt: job.attempt,
           err,
         });
+
+        // Only mark as permanently failed if we won't retry
+        if (!isTransient || job.attempt >= RETRY_DELAYS_MS.length) {
+          await db
+            .update(syncJobs)
+            .set({
+              status: "failed",
+              errorMessage: err instanceof Error ? err.message : String(err),
+              endedAt: new Date(),
+            })
+            .where(eq(syncJobs.id, job.jobId));
+        }
 
         if (isTransient && job.attempt < RETRY_DELAYS_MS.length) {
           const delayMs = RETRY_DELAYS_MS[job.attempt]!;

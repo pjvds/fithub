@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { Resource } from "sst";
-import { connections, createLogger, LogEvent } from "@fithub/core";
+import { connections, syncJobs, createLogger, LogEvent } from "@fithub/core";
 import type { AuthVariables } from "../middleware/auth.js";
 import type { LoggerVariables } from "../middleware/logger.js";
 import type { CorrelationVariables } from "../middleware/correlation.js";
 import type { SyncJobMessage } from "../../worker/index.js";
-import type { SyncHistoryResponse } from "@fithub/core";
+import type { SyncHistoryResponse, ManualSyncResponse } from "@fithub/core";
 
 interface AppEnv {
   Bindings: Record<string, never>;
@@ -23,11 +23,36 @@ export function createSyncRouter(): Hono<AppEnv> {
 
   /**
    * GET /api/sync/history
-   * Returns paginated sync job history.
-   * Note: sync_jobs DB table not yet implemented; returns empty list.
+   * Returns paginated sync job history for the authenticated user.
    */
-  router.get("/history", (c) => {
-    const response: SyncHistoryResponse = { jobs: [], next_cursor: null };
+  router.get("/history", async (c) => {
+    const userId = c.var.userId;
+    const r = Resource as unknown as { FithubDb: D1Database };
+    const db = drizzle(r.FithubDb);
+
+    const limitParam = Number(c.req.query("limit") ?? "20");
+    const limit = Math.min(Math.max(1, limitParam), 100);
+
+    const rows = await db
+      .select()
+      .from(syncJobs)
+      .where(eq(syncJobs.userId, userId))
+      .orderBy(desc(syncJobs.startedAt))
+      .limit(limit)
+      .all();
+
+    const response: SyncHistoryResponse = {
+      jobs: rows.map((row) => ({
+        id: row.id,
+        platform: row.platform,
+        status: row.status,
+        started_at: Math.floor(row.startedAt.getTime() / 1000),
+        ended_at: row.endedAt ? Math.floor(row.endedAt.getTime() / 1000) : null,
+        activities_synced: row.activitiesSynced,
+        error_message: row.errorMessage,
+      })),
+      next_cursor: null,
+    };
     return c.json(response);
   });
 
@@ -108,9 +133,28 @@ export function createSyncRouter(): Hono<AppEnv> {
 
     await r.SyncJobs.send(msg);
 
+    // Persist the job so it appears in sync history
+    const now = new Date();
+    await db.insert(syncJobs).values({
+      id: jobId,
+      userId,
+      connectionId: conn.id,
+      platform: platform as "strava",
+      status: "pending",
+      source: "manual",
+      activitiesSynced: 0,
+      startedAt: now,
+    });
+
     log.info(LogEvent.syncJobEnqueued, { userId, platform, jobId, source: "manual_trigger" });
 
-    return c.json({ jobId }, 202);
+    const response: ManualSyncResponse = {
+      job_id: jobId,
+      platform: platform as "strava",
+      status: "pending",
+      started_at: Math.floor(now.getTime() / 1000),
+    };
+    return c.json(response, 202);
   });
 
   return router;

@@ -135,6 +135,26 @@ export const pushDevices = sqliteTable(
   }),
 );
 
+export const syncJobs = sqliteTable(
+  "sync_jobs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    connectionId: text("connection_id").notNull(),
+    platform: text("platform", { enum: ["strava"] }).notNull(),
+    status: text("status", { enum: ["pending", "success", "partial", "failed"] }).notNull().default("pending"),
+    source: text("source", { enum: ["manual", "scheduled"] }).notNull().default("manual"),
+    activitiesSynced: integer("activities_synced").notNull().default(0),
+    errorMessage: text("error_message"),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+  },
+  (t) => ({
+    idxUserStarted: index("idx_sync_jobs_user_started").on(t.userId, t.startedAt),
+    idxStatus: index("idx_sync_jobs_status").on(t.status),
+  }),
+);
+
 export const dedupEvaluations = sqliteTable(
   "dedup_evaluations",
   {

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { Resource } from "sst";
-import { users, connections, logAuditEvent, LogEvent } from "@fithub/core";
+import { users, connections, syncJobs, logAuditEvent, LogEvent } from "@fithub/core";
 import type { AuthVariables } from "../middleware/auth.js";
 import type { LoggerVariables } from "../middleware/logger.js";
 import type { CorrelationVariables } from "../middleware/correlation.js";
@@ -41,6 +41,21 @@ export function createUserRouter(): Hono<AppEnv> {
 
     const connRows = await db.select().from(connections).where(eq(connections.userId, userId));
 
+    // Fetch last successful sync per connection
+    const lastSyncMap = new Map<string, number>();
+    for (const conn of connRows) {
+      const lastJob = await db
+        .select({ endedAt: syncJobs.endedAt })
+        .from(syncJobs)
+        .where(and(eq(syncJobs.connectionId, conn.id), eq(syncJobs.status, "success")))
+        .orderBy(desc(syncJobs.endedAt))
+        .limit(1)
+        .get();
+      if (lastJob?.endedAt) {
+        lastSyncMap.set(conn.id, Math.floor(lastJob.endedAt.getTime() / 1000));
+      }
+    }
+
     const profile: UserProfile = {
       user_id: user.id,
       email: user.email,
@@ -51,7 +66,7 @@ export function createUserRouter(): Hono<AppEnv> {
         platform: row.platform as "strava" | "apple_health",
         status: mapStatus(row.status),
         connected_at: Math.floor(row.createdAt.getTime() / 1000),
-        last_synced_at: null,
+        last_synced_at: lastSyncMap.get(row.id) ?? null,
         last_error: null,
       })),
     };

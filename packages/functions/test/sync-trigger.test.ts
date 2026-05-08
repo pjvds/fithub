@@ -17,6 +17,9 @@ const { dbFactory, syncJobsMock } = vi.hoisted(() => {
         }),
       }),
     }),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockResolvedValue(undefined),
+    }),
   });
 
   const dbFactory = {
@@ -118,8 +121,8 @@ describe("sync trigger router", () => {
         body: JSON.stringify({ platform: "strava" }),
       });
       expect(res.status).toBe(202);
-      const body = await res.json() as { jobId: string };
-      expect(typeof body.jobId).toBe("string");
+      const body = await res.json() as { job_id: string };
+      expect(typeof body.job_id).toBe("string");
       expect(syncJobsMock.send).toHaveBeenCalledOnce();
     });
 
