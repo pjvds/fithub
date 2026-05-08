@@ -330,7 +330,34 @@ Events NOT emitted (internal): `token.refreshed`, `sync_job.retrying`, `activity
 
 ---
 
-## 5. Boundary Decisions (What This Document Does NOT Cover)
+## 5. Observability Architecture (feat-007)
+
+**Added:** 2026-05-08 — see `.specify/specs/007-betterstack-observability/plan.md` for full detail.
+
+FitHub uses a **Cloudflare Tail Worker** to ship structured logs from all Workers to **BetterStack Logs**. **BetterStack Uptime** monitors the API and Auth endpoints externally.
+
+```
+FitHub Workers (Api, Auth, SyncWorker, OutboxRelay, Scheduler)
+    │  console.* (structured JSON via Logger)
+    ▼  [tailConsumers binding — async, after invocation]
+TailWorker  ──► BetterStack Logs (HTTPS NDJSON, Bearer token)
+                  ├─ Searchable by event / userId / correlationId / level
+                  └─ Alert: level:error > 10/min
+
+BetterStack Uptime (external polling)
+    ├─ GET /api/status  (every 1 min)
+    └─ GET /auth health (every 1 min)
+```
+
+**Key constraints:**
+- Tail Worker is fire-and-forget — producing Workers are unaffected if BetterStack is down
+- `BetterStackToken` SST secret — separate per stage (dev/prod)
+- No PII in logs — enforced by `Logger.redact()` in `packages/core/src/logging/logger.ts`
+- No DB schema changes
+
+---
+
+## 6. Boundary Decisions (What This Document Does NOT Cover)
 
 The following are intentionally deferred and will be addressed in separate ADs as needed:
 
