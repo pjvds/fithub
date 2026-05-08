@@ -40,7 +40,7 @@ interface Res {
   TOKEN_MASTER_KEY: { value: string };
   STRAVA_CLIENT_SECRET: { value: string };
   STRAVA_CLIENT_ID: { value: string };
-  REDIRECT_BASE_URL: { value: string };
+  REDIRECT_BASE_URL: string;
   App?: { stage?: string };
 }
 
@@ -98,7 +98,7 @@ connectionsRouter.post("/:platform/oauth/initiate", async (c) => {
   const state = randomBase64url(24);
   const codeVerifier = randomBase64url(48);
   const codeChallenge = await pkceChallenge(codeVerifier);
-  const redirectUri = `${r.REDIRECT_BASE_URL.value}/api/connections/${platform}/oauth/callback`;
+  const redirectUri = `${r.REDIRECT_BASE_URL}/api/connections/${platform}/oauth/callback`;
 
   const stateValue: OAuthState = { userId, platform, codeVerifier, redirectUri };
   await r.AuthKv.put(`oauth_state:${state}`, JSON.stringify(stateValue), { expirationTtl: STATE_TTL_SECONDS });

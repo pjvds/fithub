@@ -15,7 +15,7 @@ export default $config({
     const tokenMasterKey = new sst.Secret("TOKEN_MASTER_KEY");
     const stravaClientSecret = new sst.Secret("STRAVA_CLIENT_SECRET");
     const stravaClientId = new sst.Secret("STRAVA_CLIENT_ID");
-    const redirectBaseUrl = new sst.Secret("REDIRECT_BASE_URL");
+
     const emailProviderKey = new sst.Secret("EMAIL_PROVIDER_KEY");
     const betterStackToken = new sst.Secret("BetterStackToken");
 
@@ -56,7 +56,6 @@ export default $config({
       tokenMasterKey,
       stravaClientSecret,
       stravaClientId,
-      redirectBaseUrl,
     ];
 
     const api = new sst.cloudflare.Worker("Api", {
@@ -65,6 +64,7 @@ export default $config({
       link: [db, feedCache, authKv, blobStore, eventBus, syncJobs, retryJobs, auth, ...apiSecrets],
       environment: {
         AUTH_WORKER_URL: `https://${authDomain}`,
+        REDIRECT_BASE_URL: "https://app.fithub.space",
       },
       transform: {
         worker: {

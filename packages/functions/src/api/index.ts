@@ -18,6 +18,7 @@ interface AppEnv {
   Bindings: {
     Auth: { fetch: typeof fetch };
     AUTH_WORKER_URL: string;
+    REDIRECT_BASE_URL: string;
   };
   Variables: AuthVariables & CorrelationVariables & LoggerVariables;
 }

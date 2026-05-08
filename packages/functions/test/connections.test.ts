@@ -73,7 +73,7 @@ vi.mock("sst", () => ({
     TOKEN_MASTER_KEY: { value: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" },
     STRAVA_CLIENT_ID: { value: "strava-id" },
     STRAVA_CLIENT_SECRET: { value: "strava-secret" },
-    REDIRECT_BASE_URL: { value: "https://example.com" },
+    REDIRECT_BASE_URL: "https://example.com",
   },
 }));
 
