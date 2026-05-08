@@ -153,50 +153,73 @@ connectionsRouter.post("/:platform/oauth/callback", async (c) => {
     return c.json({ error: "token_exchange_failed" }, 502);
   }
 
-  const masterKey = r.TOKEN_MASTER_KEY.value;
-  const accessCipher = await encryptToken(oauthResult.accessToken, masterKey);
-  const refreshCipher = oauthResult.refreshToken ? await encryptToken(oauthResult.refreshToken, masterKey) : null;
+  let accessCipher: string;
+  let refreshCipher: string | null;
+  try {
+    const masterKey = r.TOKEN_MASTER_KEY.value;
+    accessCipher = await encryptToken(oauthResult.accessToken, masterKey);
+    refreshCipher = oauthResult.refreshToken ? await encryptToken(oauthResult.refreshToken, masterKey) : null;
+  } catch (err) {
+    log.error(LogEvent.oauthCallbackFailed, { code: ErrorCode.INTERNAL, platform, err: String(err) });
+    return c.json({ error: "encrypt_failed", code: "encrypt_failed" }, 500);
+  }
 
   const db = drizzle(r.FithubDb);
   const connectionId = crypto.randomUUID();
   const userId = stateData.userId;
 
-  await db
-    .insert(connections)
-    .values({
-      id: connectionId,
-      userId,
-      platform,
-      accessTokenCipher: accessCipher,
-      refreshTokenCipher: refreshCipher,
-      scopes: oauthResult.scopes,
-      expiresAt: oauthResult.expiresAt,
-      status: "active",
-    })
-    .onConflictDoUpdate({
-      target: [connections.userId, connections.platform],
-      set: {
+  try {
+    await db
+      .insert(connections)
+      .values({
+        id: connectionId,
+        userId,
+        platform,
         accessTokenCipher: accessCipher,
         refreshTokenCipher: refreshCipher,
         scopes: oauthResult.scopes,
         expiresAt: oauthResult.expiresAt,
         status: "active",
-        updatedAt: new Date(),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [connections.userId, connections.platform],
+        set: {
+          accessTokenCipher: accessCipher,
+          refreshTokenCipher: refreshCipher,
+          scopes: oauthResult.scopes,
+          expiresAt: oauthResult.expiresAt,
+          status: "active",
+          updatedAt: new Date(),
+        },
+      });
+  } catch (err) {
+    log.error(LogEvent.oauthCallbackFailed, { code: ErrorCode.DB_WRITE_FAILED, platform, err: String(err) });
+    return c.json({ error: "db_insert_failed", code: "db_insert_failed" }, 500);
+  }
 
-  await appendOutbox(
-    db,
-    newCloudEvent({
-      id: crypto.randomUUID(),
-      source: "fithub/api",
-      type: "connection.created",
-      subject: userId,
-      data: { userId, platform, connectionId },
-    }),
-  );
+  try {
+    await appendOutbox(
+      db,
+      newCloudEvent({
+        id: crypto.randomUUID(),
+        source: "fithub/api",
+        type: "connection.created",
+        subject: userId,
+        data: { userId, platform, connectionId },
+      }),
+    );
+  } catch (err) {
+    log.error(LogEvent.oauthCallbackFailed, { code: ErrorCode.OUTBOX_RELAY_FAILED, platform, err: String(err) });
+    // Outbox failure is non-fatal — connection is already saved
+  }
 
-  await logAuditEvent(db, { userId, eventType: "oauth.callback.success", platform });
+  try {
+    await logAuditEvent(db, { userId, eventType: "oauth.callback.success", platform });
+  } catch (err) {
+    log.error(LogEvent.oauthCallbackFailed, { code: ErrorCode.INTERNAL, platform, err: String(err) });
+    // Audit failure is non-fatal
+  }
+
   log.info(LogEvent.oauthCallbackCompleted, { platform, userId, connectionId });
 
   return c.json({ connectionId, platform, status: "active" }, 201);
