@@ -14,6 +14,7 @@ import {
   RateLimitBudget,
 } from "@fithub/core";
 import type { OAuthPlatformAdapter } from "@fithub/core";
+import { invalidateUserFeedCache } from "../api/routes/activities.js";
 
 /**
  * Retry delay schedule in milliseconds: 5m → 15m → 30m → 1h.
@@ -220,6 +221,11 @@ export default {
         // Advance cursor to current time if we had any results
         if (rawActivities.length > 0 && newCursor === null) {
           newCursor = String(Date.now());
+        }
+
+        // Invalidate KV feed cache for this user when new activities were ingested.
+        if (newActivities > 0) {
+          void invalidateUserFeedCache(r.FeedCache, job.userId);
         }
 
         await doStub.fetch(

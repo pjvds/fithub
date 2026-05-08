@@ -12,6 +12,7 @@ import { createActivitiesRouter } from "./routes/activities.js";
 import { createSyncRouter } from "./routes/sync.js";
 import { createDedupRouter } from "./routes/dedup.js";
 import { createUserRouter } from "./routes/user.js";
+import { createStatusRouter } from "./routes/status.js";
 
 interface AppEnv {
   Bindings: {
@@ -57,6 +58,8 @@ app.get("/health", (c) =>
 
 // Unauthenticated webhook routes
 app.route("/api/webhooks", createWebhooksRouter());
+// Public status endpoint (Constitution §7) — no auth required
+app.route("/api/status", createStatusRouter());
 
 const authedRoutes = new Hono<AppEnv>();
 

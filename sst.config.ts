@@ -74,7 +74,11 @@ export default $config({
       link: [db, eventBus],
     });
 
-    // Scheduler Worker — cron triggers hourly for Strava reconcile
+    // Scheduler Worker — cron triggers:
+    //   "0 * * * *" — hourly Strava reconcile
+    //   "0 0 * * *" — daily processed_events cleanup (T056)
+    // Cron expressions must be registered in the Cloudflare dashboard or via
+    // wrangler.toml [triggers] because SST Ion does not yet expose a cron prop.
     const scheduler = new sst.cloudflare.Worker("Scheduler", {
       handler: "packages/functions/src/scheduler/index.ts",
       link: [db, tokenMasterKey, stravaClientSecret],

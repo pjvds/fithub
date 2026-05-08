@@ -1,0 +1,10 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "← Dashboard" [ref=e4] [cursor=pointer]:
+        - /url: /dashboard
+      - heading "Activity History" [level=1] [ref=e5]
+    - alert [ref=e6]: Unable to load activities. Please refresh.
+  - note "Cookie notice" [ref=e7]:
+    - paragraph [ref=e8]: FitHub uses strictly necessary cookies (session authentication only). No advertising or third-party tracking cookies are used.
+    - button "Got it" [ref=e9]

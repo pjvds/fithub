@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "← Dashboard" [ref=e4] [cursor=pointer]:
+        - /url: /dashboard
+      - heading "Settings" [level=1] [ref=e5]
+    - region "Profile" [ref=e6]:
+      - heading "Profile" [level=2] [ref=e7]
+      - alert [ref=e8]: Unable to load profile. Please refresh.
+    - region "Data Export" [ref=e9]:
+      - heading "Data Export" [level=2] [ref=e10]
+      - paragraph [ref=e11]: Request a full export of your FitHub data (profile, connections, sync history, activity records). You'll receive an email with a download link when the export is ready.
+      - button "Request data export" [ref=e14]
+    - region "Danger Zone" [ref=e15]:
+      - heading "Danger Zone" [level=2] [ref=e16]
+      - paragraph [ref=e17]: Deleting your account permanently removes all your data. This action cannot be undone.
+      - button "Delete account" [ref=e19]
+  - note "Cookie notice" [ref=e20]:
+    - paragraph [ref=e21]: FitHub uses strictly necessary cookies (session authentication only). No advertising or third-party tracking cookies are used.
+    - button "Got it" [ref=e22]

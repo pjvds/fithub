@@ -1,0 +1,12 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - heading "FitHub" [level=1] [ref=e5]
+        - paragraph [ref=e6]: Your fitness data, unified in one place.
+      - link "Sign in to FitHub" [ref=e7] [cursor=pointer]:
+        - /url: https://auth.fithub.space/authorize?client_id=web&redirect_uri=https%3A%2F%2Fapp.fithub.space%2Fauth%2Fcallback&response_type=code&state=%2Fdashboard
+      - paragraph [ref=e8]: Connect Strava, and more to sync your activities automatically.
+  - note "Cookie notice" [ref=e9]:
+    - paragraph [ref=e10]: FitHub uses strictly necessary cookies (session authentication only). No advertising or third-party tracking cookies are used.
+    - button "Got it" [ref=e11]

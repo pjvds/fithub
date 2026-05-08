@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { Resource } from "sst";
 import { connections, createLogger, LogEvent } from "@fithub/core";
+import { runCleanup } from "../outbox-relay/cleanup.js";
 
 type SchedulerEnv = Record<string, never>;
 
@@ -40,12 +41,21 @@ async function runSchedulerTick(cron: string): Promise<void> {
     await reconcileStravaConnections(db, log);
   }
 
+  if (isDailyCleanup(cron)) {
+    await runCleanup();
+  }
+
   log.info(LogEvent.schedulerTickCompleted, { cron });
 }
 
 /** Cron expression: every hour. */
 function isStravaReconcile(cron: string): boolean {
   return cron === "0 * * * *";
+}
+
+/** Cron expression: daily at midnight UTC. */
+function isDailyCleanup(cron: string): boolean {
+  return cron === "0 0 * * *";
 }
 
 /**

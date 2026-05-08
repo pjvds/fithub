@@ -8,12 +8,32 @@ import type { LoggerVariables } from "../middleware/logger.js";
 import type { CorrelationVariables } from "../middleware/correlation.js";
 
 interface AppEnv {
-  Bindings: Record<string, never>;
+  Bindings: {
+    FeedCache: KVNamespace;
+  };
   Variables: AuthVariables & LoggerVariables & CorrelationVariables;
 }
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
+/** 5-minute KV TTL for hot activity feed pages. */
+const FEED_CACHE_TTL_SECONDS = 300;
+
+/** Build a deterministic KV key for a given set of query params. */
+function feedCacheKey(userId: string, cursor: string | undefined, limit: number, platform: string | undefined): string {
+  return `feed:v1:${userId}:${cursor ?? ""}:${limit}:${platform ?? ""}`;
+}
+
+/** Delete all feed cache entries for a user (called on new activity ingest). */
+export async function invalidateUserFeedCache(kv: KVNamespace, userId: string): Promise<void> {
+  const prefix = `feed:v1:${userId}:`;
+  let cursor: string | null = null;
+  do {
+    const page: KVNamespaceListResult<unknown, string> = await kv.list({ prefix, ...(cursor ? { cursor } : {}), limit: 100 });
+    await Promise.all(page.keys.map((k: KVNamespaceListKey<unknown, string>) => kv.delete(k.name)));
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor !== null);
+}
 
 export function createActivitiesRouter(): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
@@ -36,6 +56,16 @@ export function createActivitiesRouter(): Hono<AppEnv> {
     const limit = Math.min(isNaN(limitParam) ? DEFAULT_PAGE_SIZE : limitParam, MAX_PAGE_SIZE);
     const cursorParam = c.req.query("cursor");
     const platform = c.req.query("platform");
+
+    // Check KV feed cache first.
+    const cacheKey = feedCacheKey(userId, cursorParam, limit, platform);
+    const kv = c.env?.FeedCache;
+    if (kv) {
+      const cached = await kv.get(cacheKey, "text");
+      if (cached) {
+        return c.json(JSON.parse(cached), 200, { "X-Cache": "HIT" });
+      }
+    }
 
     const cursorDate = cursorParam
       ? new Date(parseInt(cursorParam, 10))
@@ -113,7 +143,14 @@ export function createActivitiesRouter(): Hono<AppEnv> {
           )
         : null;
 
-    return c.json({ items, nextCursor });
+    const body = { items, nextCursor };
+
+    // Populate KV cache for this page (best-effort, fire-and-forget).
+    if (kv) {
+      void kv.put(cacheKey, JSON.stringify(body), { expirationTtl: FEED_CACHE_TTL_SECONDS });
+    }
+
+    return c.json(body);
   });
 
   /**

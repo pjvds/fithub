@@ -1,0 +1,9 @@
+- generic [ref=e1]:
+  - heading "Enter your code" [level=1] [ref=e2]
+  - paragraph [ref=e3]: We sent a 6-digit code to your email.
+  - paragraph [ref=e4]: Invalid code, please try again.
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - text: 6-digit code
+      - textbox "6-digit code" [active] [ref=e7]
+    - button "Verify" [ref=e8] [cursor=pointer]
