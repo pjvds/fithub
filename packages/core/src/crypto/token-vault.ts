@@ -15,9 +15,13 @@ function b64decode(s: string): Uint8Array {
 }
 
 async function importKey(keyB64: string): Promise<CryptoKey> {
-  const raw = b64decode(keyB64);
+  // Normalize: strip whitespace and convert base64url to standard base64
+  const normalized = keyB64.trim().replace(/-/g, "+").replace(/_/g, "/");
+  // Pad to a multiple of 4 if needed
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+  const raw = b64decode(padded);
   if (raw.length !== 32) {
-    throw new Error("TOKEN_MASTER_KEY must be 32 bytes (base64-encoded AES-256 key)");
+    throw new Error(`TOKEN_MASTER_KEY must be 32 bytes when base64-decoded (got ${raw.length} bytes from ${padded.length}-char string)`);
   }
   return crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
