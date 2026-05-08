@@ -9,7 +9,7 @@ import { createApiClient } from "../lib/api-client";
 import type { SyncHistoryResponse } from "@fithub/core";
 
 const correlationId: string = Astro.locals.correlationId;
-const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
+const { API_BASE_URL: apiBaseUrl } = await import("@/lib/env");
 const accessToken = Astro.cookies.get("access_token")?.value ?? "";
 
 const cursor = Astro.url.searchParams.get("cursor") ?? undefined;

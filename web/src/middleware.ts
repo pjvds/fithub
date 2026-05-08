@@ -36,7 +36,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return response;
   }
 
-  const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space";
+  const authWorkerUrl = import.meta.env.AUTH_WORKER_URL;
+  if (!authWorkerUrl) throw new Error("Missing required environment variable: AUTH_WORKER_URL");
   const client = createAuthClient({ issuer: authWorkerUrl });
 
   let accessToken = cookies.get("access_token")?.value;

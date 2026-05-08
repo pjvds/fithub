@@ -18,7 +18,7 @@ const formData = await Astro.request.formData();
 const deleteData = formData.get("delete_data") === "true";
 
 const accessToken = Astro.cookies.get("access_token")?.value ?? "";
-const apiBaseUrl = import.meta.env.API_BASE_URL ?? "https://api.fithub.space";
+const { API_BASE_URL: apiBaseUrl } = await import("@/lib/env");
 const correlationId = Astro.locals.correlationId;
 
 try {

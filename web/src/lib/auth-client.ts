@@ -32,7 +32,8 @@ export const subjects = createSubjects({
  *   const client = createAuthClient({ fetch: (input, init) => authBinding.fetch(input, init) });
  */
 export function createAuthClient(opts?: CreateAuthClientOptions): AuthClient {
-  const issuer = opts?.issuer ?? import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space";
+  const issuer = opts?.issuer ?? import.meta.env.AUTH_WORKER_URL;
+  if (!issuer) throw new Error("Missing required environment variable: AUTH_WORKER_URL");
   return createClient({
     clientID: "web",
     issuer,
