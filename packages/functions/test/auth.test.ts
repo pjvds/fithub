@@ -85,7 +85,7 @@ function extractCookies(res: Response): string {
   return all.join("; ");
 }
 
-/** Drive the OAuth authorize flow through provider selection to the email form, returning cookies. */
+/** Drive the OAuth authorize flow to the email form, returning cookies. */
 async function startAuthFlow(env: Env): Promise<string> {
   const authorizeUrl = new URL("https://auth.fithub.space/authorize");
   authorizeUrl.searchParams.set("response_type", "code");
@@ -96,42 +96,30 @@ async function startAuthFlow(env: Env): Promise<string> {
   );
   authorizeUrl.searchParams.set("state", "test-state");
 
-  // Step 1: GET /authorize — stores OAuth params, shows provider selection screen
+  // Step 1: GET /authorize — single provider, OpenAuth redirects to /email/authorize
   const step1 = await authWorker.fetch(
     new Request(authorizeUrl.toString()),
     env as unknown as Parameters<typeof authWorker.fetch>[1],
   );
   const cookies1 = extractCookies(step1);
-  expect(step1.status).toBe(200);
+  const location1 = step1.headers.get("location") ?? "";
+  expect(step1.status).toBe(302);
+  expect(location1).toContain("/email/authorize");
 
-  // Step 2: GET /authorize?provider=email — selects CodeProvider, redirects to /email/authorize
-  const selectEmailUrl = new URL(authorizeUrl.toString());
-  selectEmailUrl.searchParams.set("provider", "email");
+  // Step 2: GET /email/authorize — sets provider state cookie, shows email form
+  const providerPath = location1.startsWith("http")
+    ? new URL(location1).pathname
+    : location1;
   const step2 = await authWorker.fetch(
-    new Request(selectEmailUrl.toString(), {
+    new Request(`https://auth.fithub.space${providerPath}`, {
       headers: { cookie: cookies1 },
     }),
     env as unknown as Parameters<typeof authWorker.fetch>[1],
   );
   const cookies2 = [cookies1, extractCookies(step2)].filter(Boolean).join("; ");
-  const location2 = step2.headers.get("location") ?? "";
-  expect(step2.status).toBe(302);
-  expect(location2).toContain("/email/authorize");
+  expect(step2.status).toBe(200);
 
-  // Step 3: GET /email/authorize — sets provider state cookie, shows email form
-  const providerPath = location2.startsWith("http")
-    ? new URL(location2).pathname
-    : location2;
-  const step3 = await authWorker.fetch(
-    new Request(`https://auth.fithub.space${providerPath}`, {
-      headers: { cookie: cookies2 },
-    }),
-    env as unknown as Parameters<typeof authWorker.fetch>[1],
-  );
-  const cookies3 = [cookies2, extractCookies(step3)].filter(Boolean).join("; ");
-  expect(step3.status).toBe(200);
-
-  return cookies3;
+  return cookies2;
 }
 
 // ---------------------------------------------------------------------------
