@@ -15,15 +15,15 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const db = Resource.FithubDb as unknown as { id: string };
+const db = Resource.FithubDb as unknown as { databaseId: string };
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
 if (!accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID is not set");
 if (!apiToken) throw new Error("CLOUDFLARE_API_TOKEN is not set");
-if (!db?.id) throw new Error("Resource.FithubDb.id is not available");
+if (!db?.databaseId) throw new Error("Resource.FithubDb.databaseId is not available");
 
-const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${db.id}`;
+const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${db.databaseId}`;
 
 async function d1Query<T = Record<string, unknown>>(
   sql: string,
