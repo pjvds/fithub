@@ -73,7 +73,6 @@ vi.mock("sst", () => ({
     TOKEN_MASTER_KEY: { value: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" },
     STRAVA_CLIENT_ID: { value: "strava-id" },
     STRAVA_CLIENT_SECRET: { value: "strava-secret" },
-    REDIRECT_BASE_URL: "https://example.com",
   },
 }));
 
@@ -102,6 +101,8 @@ const mockLogger: Logger = {
 } as unknown as Logger;
 
 type AppEnv = { Variables: AuthVariables & LoggerVariables & CorrelationVariables };
+
+const TEST_ENV = { REDIRECT_BASE_URL: "https://example.com" };
 
 async function buildApp(userId = "user-1") {
   // Import AFTER mocks are set up (dynamic import to allow mock hoisting to settle)
@@ -140,7 +141,7 @@ describe("connections router", () => {
     });
 
     it("stores PKCE state in KV with TTL", async () => {
-      await app.request("/connections/strava/oauth/initiate", { method: "POST" });
+      await app.request("/connections/strava/oauth/initiate", { method: "POST" }, TEST_ENV);
 
       expect(kvMock.put).toHaveBeenCalledTimes(1);
       const [key, _value, opts] = kvMock.put.mock.calls[0]! as [string, string, { expirationTtl: number }];
@@ -149,7 +150,7 @@ describe("connections router", () => {
     });
 
     it("returns authUrl for strava", async () => {
-      const res = await app.request("/connections/strava/oauth/initiate", { method: "POST" });
+      const res = await app.request("/connections/strava/oauth/initiate", { method: "POST" }, TEST_ENV);
       expect(res.status).toBe(200);
       const body = (await res.json()) as { authUrl: string };
       expect(body.authUrl).toContain("strava.example.com");
