@@ -7,6 +7,7 @@ import type { AuthVariables } from "../middleware/auth.js";
 import type { LoggerVariables } from "../middleware/logger.js";
 import type { CorrelationVariables } from "../middleware/correlation.js";
 import type { SyncJobMessage } from "../../worker/index.js";
+import type { SyncHistoryResponse } from "@fithub/core";
 
 interface AppEnv {
   Bindings: Record<string, never>;
@@ -19,6 +20,16 @@ type SyncEnv = {
 
 export function createSyncRouter(): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
+
+  /**
+   * GET /api/sync/history
+   * Returns paginated sync job history.
+   * Note: sync_jobs DB table not yet implemented; returns empty list.
+   */
+  router.get("/history", (c) => {
+    const response: SyncHistoryResponse = { jobs: [], next_cursor: null };
+    return c.json(response);
+  });
 
   /**
    * POST /api/sync/trigger

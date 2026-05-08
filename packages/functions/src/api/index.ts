@@ -11,6 +11,7 @@ import { createWebhooksRouter } from "./routes/webhooks.js";
 import { createActivitiesRouter } from "./routes/activities.js";
 import { createSyncRouter } from "./routes/sync.js";
 import { createDedupRouter } from "./routes/dedup.js";
+import { createUserRouter } from "./routes/user.js";
 
 interface AppEnv {
   Bindings: {
@@ -86,6 +87,7 @@ authedRoutes.route("/connections", connectionsRouter);
 authedRoutes.route("/activities", createActivitiesRouter());
 authedRoutes.route("/sync", createSyncRouter());
 authedRoutes.route("/dedup", createDedupRouter());
+authedRoutes.route("/user", createUserRouter());
 
 app.route("/api", authedRoutes);
 
