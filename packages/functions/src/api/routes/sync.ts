@@ -26,7 +26,7 @@ export function createSyncRouter(): Hono<AppEnv> {
    * Returns paginated sync job history for the authenticated user.
    */
   router.get("/history", async (c) => {
-    const userId = c.var.userId;
+    const userId = c.get("userId");
     const r = Resource as unknown as { FithubDb: D1Database };
     const db = drizzle(r.FithubDb);
 
@@ -64,7 +64,7 @@ export function createSyncRouter(): Hono<AppEnv> {
    * Body: { platform: "strava" }
    */
   router.post("/trigger", async (c) => {
-    const userId = c.var.userId;
+    const userId = c.get("userId");
     const r = Resource as unknown as {
       FithubDb: D1Database;
       SyncJobs: Queue<SyncJobMessage>;

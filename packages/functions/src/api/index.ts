@@ -2,8 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { Resource } from "sst";
 import { createClient } from "@openauthjs/openauth/client";
-import { ErrorCode, LogEvent, syncJobs } from "@fithub/core";
-import { drizzle } from "drizzle-orm/d1";
+import { ErrorCode, LogEvent } from "@fithub/core";
 import { authMiddleware, type AuthVariables } from "./middleware/auth.js";
 import { correlationMiddleware, type CorrelationVariables } from "./middleware/correlation.js";
 import { loggerMiddleware, type LoggerVariables } from "./middleware/logger.js";
@@ -63,17 +62,6 @@ app.route("/api/webhooks", createWebhooksRouter());
 // Public status endpoint (Constitution §7) — no auth required
 app.route("/api/status", createStatusRouter());
 
-// TEMPORARY: debug endpoint to reveal sync_jobs query errors without auth
-app.get("/debug-sync-query", async (c) => {
-  try {
-    const r = Resource as unknown as { FithubDb: D1Database };
-    const db = drizzle(r.FithubDb);
-    const rows = await db.select().from(syncJobs).limit(1).all();
-    return c.json({ ok: true, rowCount: rows.length });
-  } catch (e) {
-    return c.json({ ok: false, error: String(e), stack: (e as Error).stack });
-  }
-});
 
 const authedRoutes = new Hono<AppEnv>();
 
@@ -117,10 +105,6 @@ app.onError((err, c) => {
     method: c.req.method,
     path: c.req.path,
   });
-  // Temporary: expose error in dev for debugging
-  if (stage === "dev") {
-    return c.json({ error: "internal_error", debug: String(err), stack: (err as Error).stack }, 500);
-  }
   return c.json({ error: "internal_error" }, 500);
 });
 
