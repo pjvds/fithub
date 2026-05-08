@@ -32,9 +32,9 @@ function buildIssuer(env: Env) {
     providers: {
       email: CodeProvider({
         sendCode: async (claims, code) => {
-          const resend = new Resend(
-            (Resource as unknown as { EMAIL_PROVIDER_KEY: { value: string } }).EMAIL_PROVIDER_KEY.value
-          );
+          // SST generates Resource types at dev/deploy time; cast needed in static analysis
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const resend = new Resend((Resource as any).EMAIL_PROVIDER_KEY.value);
           const { error } = await resend.emails.send({
             from: "FitHub <noreply@fithub.space>",
             to: claims.email as string,
