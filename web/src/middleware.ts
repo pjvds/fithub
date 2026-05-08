@@ -73,6 +73,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
+  const authWorkerUrl = import.meta.env.AUTH_WORKER_URL;
+
   if (!accessToken) {
     const callbackUrl = new URL("/auth/callback", url).toString();
     return redirect(
