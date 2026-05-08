@@ -13,10 +13,11 @@
 
 | Feature | Spec | Status | Tasks | Notes |
 |---------|------|--------|-------|-------|
-| **Backend Foundation** | `000-backend-foundation` | 🟡 In Progress | 88 tasks | Auth Workers, API Workers, Sync Orchestrators, Dedup engine; Phases 1–5 |
-| **Web Frontend** | `005-web-frontend` | 📋 Planned | TBD | Astro on Cloudflare Pages; plan.md + research.md + data-model.md + contracts/ complete |
+| **Backend Foundation** | `000-backend-foundation` | ✅ Complete | 88 tasks | Auth Workers, API Workers, Sync Orchestrators, Dedup engine; all phases done |
+| **BetterStack Observability** | `007-betterstack-observability` | ✅ Complete | — | Cloudflare Logpush → BetterStack; live on production (build #38) |
+| **Web Frontend** | `005-web-frontend` | ✅ Complete | — | Astro on Cloudflare Pages; dashboard, ConnectionCard, activity history, sync now |
+| **Strava Platform Connection** | `008-strava-connect` | 🟡 In Progress | TBD | Web OAuth connect/callback flow; plan.md + research.md + data-model.md complete |
 | **Zwift OAuth (web)** | `006-zwift-oauth-web` | 🔜 Not started | TBD | Web OAuth flow for Zwift; spec not yet created |
-| **Strava OAuth (web)** | `007-strava-oauth-web` | 🔜 Not started | TBD | Web OAuth flow for Strava; spec not yet created |
 
 ## Superseded / Postponed Features
 
