@@ -59,16 +59,14 @@ app.route("/api/webhooks", createWebhooksRouter());
 const authedRoutes = new Hono<AppEnv>();
 
 authedRoutes.use("*", async (c, next) => {
-  // Build an OpenAuth client that routes through the Auth service binding.
-  // The service binding (env.Auth) routes calls within Cloudflare's network
-  // at sub-millisecond latency — no public egress, no HTTP round-trip.
-  // X-Request-ID is propagated so cross-service traces can be correlated.
   const authBinding = c.env.Auth;
   const requestId = c.req.header("x-request-id");
 
+  const issuer = (Resource as unknown as { Auth?: { url?: string } }).Auth?.url ?? "";
+
   const client = createClient({
     clientID: "api",
-    issuer: (Resource as unknown as { Auth?: { url?: string } }).Auth?.url ?? "",
+    issuer,
     fetch: (input: RequestInfo | URL, init?: RequestInit) => {
       const headers = new Headers((init as RequestInit | undefined)?.headers);
       if (requestId) headers.set("x-request-id", requestId);
@@ -77,7 +75,7 @@ authedRoutes.use("*", async (c, next) => {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (authMiddleware({ client }) as (c: any, next: any) => Promise<Response>)(c, next);
+  return (authMiddleware({ client, issuer }) as (c: any, next: any) => Promise<Response>)(c, next);
 });
 
 authedRoutes.get("/me", (c) => c.json({ userId: c.get("userId") }));
