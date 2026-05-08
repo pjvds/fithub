@@ -161,7 +161,7 @@ connectionsRouter.post("/:platform/oauth/callback", async (c) => {
     refreshCipher = oauthResult.refreshToken ? await encryptToken(oauthResult.refreshToken, masterKey) : null;
   } catch (err) {
     log.error(LogEvent.oauthCallbackFailed, { code: ErrorCode.INTERNAL, platform, err: String(err) });
-    return c.json({ error: "encrypt_failed", code: "encrypt_failed", _debug: String(err) }, 500);
+    return c.json({ error: "encrypt_failed", code: "encrypt_failed" }, 500);
   }
 
   const db = drizzle(r.FithubDb);
