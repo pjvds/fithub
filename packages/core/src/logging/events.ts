@@ -48,6 +48,10 @@ export const LogEvent = {
   webhookSubscriptionDeleted: "webhook.subscription.deleted",
   webhookReceived: "webhook.received",
   webhookSignatureFailed: "webhook.signature.failed",
+
+  userExportRequested: "user.export.requested",
+  userExportReady: "user.export_ready",
+  userDeleted: "user.deleted",
 } as const;
 
 export type LogEvent = (typeof LogEvent)[keyof typeof LogEvent];

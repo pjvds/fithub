@@ -1,5 +1,7 @@
 # Implementation Tasks: Strava OAuth Integration
 
+> **⛔ STATUS: SUPERSEDED (2026-05-06).** This Flutter-mobile-oriented task list is superseded. The server-driven Strava OAuth + webhook flow for the v1 Astro web frontend is defined in the future `007-strava-oauth-web` spec. **Do not implement any tasks below** — all tasks are effectively POSTPONED pending the new spec.
+
 **Feature:** Strava OAuth Integration  
 **Feature ID:** feat-003-strava-oauth  
 **Tech Stack:** Flutter (Dart) + SQLite + shared Zwift infrastructure  
