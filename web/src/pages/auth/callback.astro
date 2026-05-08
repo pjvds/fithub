@@ -16,7 +16,7 @@ if (!code) {
   return Astro.redirect("/?error=missing_code", 302);
 }
 
-const authWorkerUrl = import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space";
+const { AUTH_WORKER_URL: authWorkerUrl } = await import("@/lib/env");
 const callbackUrl = new URL("/auth/callback", new URL(Astro.request.url).origin).toString();
 
 const client = createAuthClient({ issuer: authWorkerUrl });

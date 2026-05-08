@@ -29,7 +29,7 @@ let _authClient: ReturnType<typeof createAuthClient> | null = null;
 function getAuthClient(): ReturnType<typeof createAuthClient> {
   if (!_authClient) {
     _authClient = createAuthClient({
-      issuer: import.meta.env.AUTH_WORKER_URL ?? "https://auth.fithub.space",
+      issuer: import.meta.env.AUTH_WORKER_URL,
     });
   }
   return _authClient;
