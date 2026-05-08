@@ -18,11 +18,11 @@
 
 **Implementation:**
 1. Set `logpush: true` on each Worker script via `transform.worker: { logpush: true }` in SST Ion.
-2. Create one Cloudflare Logpush job targeting BetterStack's HTTPS endpoint:
+2. Create one Cloudflare Logpush job as a Pulumi resource in `sst.config.ts`:
    ```
-   https://in.logs.betterstack.com?header_Authorization=Bearer%20<TOKEN>
+   https://in.logs.betterstack.com?header_Authorization=Bearer%20${betterStackToken.value}
    ```
-3. Run the one-time setup script `scripts/setup-betterstack.ts`.
+   (built via `$interpolate` from the `BetterStackToken` SST Secret)
 
 **Alternatives Considered:**
 - **Tail Worker**: Evaluated first, then rejected after consulting BetterStack's official Cloudflare integration docs. The BetterStack docs explicitly recommend Logpush. Tail Workers add unnecessary custom code and maintenance overhead.
@@ -48,20 +48,16 @@
 
 ---
 
-## Decision 3: Uptime Monitoring — BetterStack API + Script
+## Decision 3: Uptime Monitoring — DESCOPED (§4 Deviation)
 
-**Decision:** Create uptime monitors via the **BetterStack Uptime REST API** using a one-time setup script (`scripts/setup-betterstack.ts`). This makes the configuration reproducible and code-reviewable.
+**Decision:** Uptime monitoring (endpoint polling via BetterStack) was evaluated and explicitly descoped from this feature.
 
 **Rationale:**
-- Manual UI clicks are not reproducible. A setup script documents intent and can be re-run for new environments.
-- BetterStack's Uptime API (`uptime.betterstack.com/api/v2/monitors`) supports CRUD for monitors.
-- The script runs once per environment and is idempotent (check-before-create).
+- Uptime monitoring requires BetterStack's Uptime product, which has no Pulumi/Cloudflare provider — setup would require a separate API script or manual UI clicks.
+- The added complexity is out of proportion to the initial release scope.
+- Log-based error-rate alerting (AC3) provides partial coverage; a complete Worker outage produces no logs and no alert — this gap is documented as a §4 Constitution deviation in spec.md.
 
-**Monitors to create:**
-1. `FitHub API` — `GET https://api.fithub.space/health` every 3 min
-2. `FitHub Auth` — `GET https://auth.fithub.space/health` every 3 min
-
-**Alert policy:** 2 consecutive failures → page (reduces false positives from transient Cloudflare edge blips).
+**Recommendation:** Revisit uptime monitoring as a separate feature once log-based observability is validated.
 
 ---
 
@@ -76,14 +72,18 @@
 
 ---
 
-## Decision 5: BetterStack Token Storage
+## Decision 5: BetterStack Token Storage — SST Secret + `$interpolate`
 
-**Decision:** The BetterStack ingest token is embedded in the Logpush job `destination_conf` URL, stored inside Cloudflare's Logpush configuration — not in Workers env vars, not as an SST secret. The token is only needed at setup-script runtime and is supplied via the `BETTER_STACK_TOKEN` environment variable.
+**Decision:** Store the BetterStack ingest token as an SST Secret (`BetterStackToken`) and embed it into the Logpush job `destination_conf` URL at deploy time using `$interpolate`.
 
 **Rationale:**
-- Logpush jobs authenticate via the `destination_conf` URL using `header_Authorization=Bearer%20TOKEN` query parameter syntax. Cloudflare stores this internally.
-- No SST secret needed. No Worker binding needed. Zero runtime overhead.
-- The GitHub Environment secret `BETTER_STACK_TOKEN` is used only when running `scripts/setup-betterstack.ts` manually — it is not needed by the deploy pipeline.
+- `sst.Secret` provides Pulumi Output-based secrets — the value is never hardcoded, never committed, and never appears in plain text in `sst.config.ts`.
+- `$interpolate` builds the destination URL from the secret's Pulumi Output: `$interpolate\`https://in.logs.betterstack.com?header_Authorization=Bearer%20${betterStackToken.value}\``
+- Cloudflare stores the resulting URL internally within the Logpush job; only Cloudflare infra sees the token at delivery time.
+- CI seeds the secret via `sst secret set BetterStackToken "$BETTER_STACK_TOKEN"` before `sst deploy`, using the GitHub Environment secret `BETTER_STACK_TOKEN`.
+- No Worker env var binding is needed — Workers never touch the token; only the Pulumi-managed Logpush job does.
+
+**Note:** An earlier research draft incorrectly stated "No SST secret needed." This was wrong. `sst.Secret("BetterStackToken")` IS used and IS required for deploy-time injection via `$interpolate`.
 
 ---
 

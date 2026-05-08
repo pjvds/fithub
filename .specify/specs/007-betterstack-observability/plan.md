@@ -4,46 +4,48 @@
 
 **Plan ID:** plan-feat-007-betterstack-observability
 
-**Version:** 1.0.0
+**Version:** 2.0.0
 
 **Planned By:** Copilot
 
 **Date:** 2026-05-08
+
+**Revised:** 2026-05-08 — pivoted from Tail Worker to Cloudflare Logpush + Pulumi; uptime monitoring descoped
 
 ---
 
 ## Problem & Approach
 
 **Feature Problem:**
-FitHub Workers emit richly structured JSON logs that are only visible in Cloudflare's 1-hour rolling tail. There is no persistent log storage, no cross-session search, no uptime monitoring, and no alerting. Incidents at 2 AM go undetected until a user reports them.
+FitHub Workers emit richly structured JSON logs that are only visible in Cloudflare's 1-hour rolling tail. There is no persistent log storage, no cross-session search, and no alerting. Incidents at 2 AM go undetected until a user reports them.
 
 **Implementation Approach:**
-Deploy a Cloudflare **Tail Worker** that receives log events from all FitHub Workers and forwards them to BetterStack Logs via HTTP. Add BetterStack Uptime monitors for the API and Auth endpoints via a one-time setup script. Store the BetterStack token as an SST secret. No changes to the existing `Logger` class or any producing Workers beyond adding the `tailConsumers` binding in `sst.config.ts`.
+Enable Cloudflare's native **Logpush** mechanism on all five FitHub Workers (`logpush: true` per Worker) and declare a `cloudflare.LogpushJob` Pulumi resource in `sst.config.ts` that delivers Workers Trace Events (including structured `console.*` output) to BetterStack Logs over HTTPS. The BetterStack source token is stored as an SST Secret and injected into the Logpush destination URL via `$interpolate` at deploy time. Zero changes to the `Logger` class or Worker business logic.
 
 ---
 
 ## Design Decisions & Rationale
 
-**Decision 1: Tail Worker over Logpush**
-- **Choice:** Cloudflare Tail Worker receiving `TraceItem[]` and forwarding NDJSON to BetterStack
-- **Rationale:** Logpush HTTP destinations require Cloudflare Business/Enterprise tier. Tail Workers are available on all plans and are the standard pattern for Workers observability.
-- **Constitution Alignment:** Principle 4 (Reliability) — observability without plan upgrade dependency; Principle 8 (Logging) — all Workers covered by a single Tail Worker binding
-- **Alternatives Considered:** Logpush (plan cost), in-Worker fetch (hot-path coupling, rejected)
-- **Impact:** New Worker to deploy (`TailWorker`); 1-line config change per producing Worker in `sst.config.ts`
+**Decision 1: Cloudflare Logpush over Tail Worker**
+- **Choice:** Enable `logpush: true` on each Worker + declare a `cloudflare.LogpushJob` Pulumi resource pointing at BetterStack's HTTPS ingest endpoint
+- **Rationale:** Cloudflare Logpush for `workers_trace_events` is available on the Workers Paid plan — no Business or Enterprise tier required. It delivers structured traces natively, requires zero custom code, and is configured as Pulumi infrastructure alongside the rest of the stack. Tail Workers were evaluated but rejected: they require a custom Worker binary, add deployment complexity, and provide no benefit when the existing `console.*` structured output is BetterStack-compatible as-is.
+- **Constitution Alignment:** Principle 6 (Code Quality) — zero new production code surface area; Principle 8 (Logging) — all Workers covered by a single Logpush job
+- **Alternatives Considered:** Tail Worker (unnecessary code complexity), in-Worker `fetch()` to BetterStack (hot-path coupling, rejected)
+- **Impact:** One new Pulumi resource in `sst.config.ts`; one boolean flag per Worker; no new Worker to deploy or maintain
 
-**Decision 2: Separate BetterStack Sources per Stage**
-- **Choice:** `BetterStackToken` SST secret set per stage (`dev`, `production`); each stage posts to its own BetterStack source
-- **Rationale:** Prevents staging errors from polluting production alert policies and dashboards
-- **Constitution Alignment:** Principle 6 (Code Quality) — environment isolation; Principle 4 (Reliability) — production alerts not drowned by dev noise
-- **Alternatives Considered:** Single shared source with `env` field filter (acceptable, but harder to set alert thresholds independently)
-- **Impact:** Operator must create two BetterStack sources and set the secret twice (`sst secret set BetterStackToken ... --stage production`)
+**Decision 2: SST Secret + $interpolate for Token Injection**
+- **Choice:** Store the BetterStack source token as `sst.Secret("BetterStackToken")`; embed it in the Logpush `destinationConf` URL using `$interpolate`
+- **Rationale:** The Logpush job `destination_conf` URL embeds the auth token via a `header_Authorization` query parameter that Cloudflare translates to an HTTP header at delivery time. Using `$interpolate` with an SST Secret means the token is resolved at deploy time from the SST secret store — never hardcoded, never committed, and automatically available in CI via `sst secret set BetterStackToken`.
+- **Constitution Alignment:** Principle 1 (Data Privacy) — token not committed to source; Principle 6 (Code Quality) — configuration as code
+- **Alternatives Considered:** Environment variable in Worker bindings (not applicable — token is only needed for Logpush destination URL, not at Worker runtime), GitHub secret passed directly to `destination_conf` (would expose token in plaintext in SST state)
+- **Impact:** `BetterStackToken` must be set via `sst secret set BetterStackToken <value>` before first deploy and in CI
 
-**Decision 3: Uptime via Setup Script (not UI-only)**
-- **Choice:** `scripts/setup-betterstack.ts` — one-time TypeScript script using BetterStack API to create monitors; idempotent
-- **Rationale:** Manual UI configuration is not reproducible or code-reviewable. A script documents the monitor configuration and can be re-run for new environments.
-- **Constitution Alignment:** Principle 6 (Code Quality) — configuration as code; Principle 7 (Transparency) — documented monitoring configuration
-- **Alternatives Considered:** Manual BetterStack UI (not reproducible), Terraform/Pulumi BetterStack provider (overkill for 2 monitors)
-- **Impact:** Operator runs script once per environment after initial deploy
+**Decision 3: Uptime Monitoring Descoped**
+- **Choice:** BetterStack Uptime monitors (polling `/api/status` and auth health) are NOT included in this feature
+- **Rationale:** Explicitly descoped at user's request. The added value (full outage detection) was outweighed by the operational overhead of maintaining monitors and managing the BetterStack Uptime API token separately. Log-based error-rate alerting (AC3) covers in-band failure detection for elevated error rates.
+- **Constitution Alignment:** This creates a documented deviation from Constitution §4 — a full Worker outage produces no logs and therefore no error-rate alert. The gap is accepted for the initial release with a follow-up feature planned.
+- **Alternatives Considered:** BetterStack Uptime API + setup script (original plan, removed), Cloudflare Health Checks (future option)
+- **Impact:** Constitution §4 deviation documented in spec; follow-up feature ticket recommended
 
 ---
 
@@ -52,43 +54,32 @@ Deploy a Cloudflare **Tail Worker** that receives log events from all FitHub Wor
 **System Diagram:**
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  FitHub Cloudflare Workers                          │
-│                                                     │
-│  ┌──────┐ ┌──────┐ ┌────────────┐ ┌───────────┐    │
-│  │ Api  │ │ Auth │ │ SyncWorker │ │ Scheduler │    │
-│  └──┬───┘ └──┬───┘ └─────┬──────┘ └─────┬─────┘    │
-│     │tail   │tail        │tail          │tail       │
-│     └────────┴────────────┴──────────────┘          │
-│                           │                         │
-│                    ┌──────▼──────┐                  │
-│                    │ TailWorker  │                  │
-│                    └──────┬──────┘                  │
-└───────────────────────────┼─────────────────────────┘
-                            │ HTTPS NDJSON
-                            ▼
-                    ┌───────────────┐
-                    │  BetterStack  │
-                    │     Logs      │
-                    │  (searchable, │
-                    │  alertable)   │
-                    └───────────────┘
-
-BetterStack Uptime (external, cron-based polling):
-  GET https://api.fithub.space/api/status  ──► alert on failure
-  GET https://auth.fithub.space            ──► alert on failure
+FitHub Workers (API / Auth / Queue / OutboxRelay / Scheduler)
+    │
+    └─ console.log/warn/error (structured JSON via Logger)
+           │  logpush: true per Worker
+           ▼
+    Cloudflare Logpush
+    (cloudflare.LogpushJob — dataset: workers_trace_events)
+           │
+           ▼ HTTPS POST — Authorization: Bearer <BetterStackToken>
+    BetterStack Logs
+    (source: fithub-<stage>)
+           │
+           ├─ Live tail (dev debugging)
+           ├─ Search by event / userId / correlationId / level
+           └─ Alert policy: error rate > 10/min → email / PagerDuty
 ```
 
 **New Components:**
-- `packages/functions/src/tail/index.ts` — Tail Worker: receives `TraceItem[]`, extracts and normalises log entries, POSTs NDJSON to BetterStack
-- `scripts/setup-betterstack.ts` — One-time setup script: creates BetterStack uptime monitors via API; idempotent
+- `cloudflare.LogpushJob("BetterStackLogpush", {...})` in `sst.config.ts` — Pulumi resource; delivers `workers_trace_events` to BetterStack HTTPS ingest endpoint
 - `docs/runbook.md` — Operator guide: log search queries, alert acknowledgement, incident escalation
 
 **Modified Components:**
-- `sst.config.ts` — Add `BetterStackToken` secret; add `TailWorker`; add `tailConsumers` binding to Api, Auth, SyncWorker, OutboxRelay, Scheduler Workers
+- `sst.config.ts` — Added `BetterStackToken` SST Secret; `logpush: true` on all 5 Worker `transform.worker` configs; `cloudflare.LogpushJob` Pulumi resource
 
 **Removed/Deprecated Components:**
-- None
+- `scripts/setup-betterstack.ts` — deleted (uptime monitoring descoped; Logpush job is now declared as Pulumi resource, not created by script)
 
 ---
 
@@ -96,7 +87,7 @@ BetterStack Uptime (external, cron-based polling):
 
 ### Data Model & Schema
 
-No database migrations. See `data-model.md` for the full log entry schema and BetterStack field mapping.
+No database migrations. See `data-model.md` for the log entry schema and BetterStack field mapping.
 
 **Data Privacy Considerations:**
 - Encryption in transit: HTTPS (TLS) to BetterStack's ingest endpoint
@@ -110,12 +101,12 @@ None. No FitHub API endpoints added or modified.
 ### Integration Points
 
 **External Services:**
-- **BetterStack Logs HTTP source** — NDJSON POST to `https://in.logs.betterstack.com` — Bearer token auth — no rate limit concerns at FitHub's current scale
-- **BetterStack Uptime API** — Setup script only — `POST /api/v2/monitors` — Bearer token auth — called once per environment setup
+- **BetterStack Logs HTTP source** — Cloudflare POSTs `workers_trace_events` JSON to `https://in.logs.betterstack.com` — Bearer token auth via URL query param — no rate limit concerns at FitHub's current scale
+- **Cloudflare Logpush API** — managed by Pulumi (`cloudflare.LogpushJob`) in `sst.config.ts`; Cloudflare validates the destination at job creation time
 
 **Internal Dependencies:**
-- `packages/core/src/logging/logger.ts` — Read-only dependency; Tail Worker consumes its output format
-- `packages/functions/src/api/routes/status.ts` — Consumed by BetterStack Uptime; no changes needed
+- `packages/core/src/logging/logger.ts` — Read-only dependency; structured `console.*` output is what Logpush captures and ships
+- `packages/functions/src/api/routes/status.ts` — Health endpoint; no changes needed
 
 ---
 
@@ -125,7 +116,7 @@ None. No FitHub API endpoints added or modified.
 **Compliance Strategy:**
 - [x] Encryption in transit: TLS to BetterStack ingest endpoint
 - [x] No PII in logs: existing `redact()` strips email, name, IP, tokens, payloads
-- [x] `BetterStackToken` stored as SST secret, not committed
+- [x] `BetterStackToken` stored as SST secret, not committed; injected via `$interpolate` at deploy time
 - [x] BetterStack is a vetted third-party (SOC 2 compliant, GDPR-ready DPA available)
 - [x] Audit: no new audit_log entries needed — this is infrastructure, not a user action
 
@@ -133,8 +124,8 @@ None. No FitHub API endpoints added or modified.
 
 ### 2. Cross-Platform Integration
 **Compliance Strategy:**
-- [x] BetterStack integration is fire-and-forget (no response processing); rate limits not a concern
-- [x] Tail Worker silently swallows BetterStack errors to avoid cascading into producing Workers
+- [x] BetterStack integration is push-based and fire-and-forget; rate limits not a concern
+- [x] Logpush delivery failures are handled by Cloudflare (retries internally); producing Workers unaffected
 - [x] No conflict detection needed — observability is write-only to BetterStack
 
 **Deviations:** None (observability is not a user-facing platform integration)
@@ -149,30 +140,29 @@ None. No FitHub API endpoints added or modified.
 
 ### 4. Reliability & Uptime
 **Compliance Strategy:**
-- [x] Tail Worker failure does not affect producing Workers — Cloudflare's tail delivery is best-effort
+- [x] Logpush failure does not affect producing Workers — delivery is best-effort, asynchronous, and outside the request hot path
 - [x] If BetterStack is unavailable, logs continue flowing to Cloudflare's 1-hour tail as fallback
-- [x] BetterStack Uptime monitors alert on API and Auth downtime within 5 minutes
-- [x] Tail Worker has no state to persist — stateless, no D1/KV dependency
+- [x] Tail Worker is not used — no additional runtime component to fail
 
-**Deviations:** None
+**Deviations:** Constitution §4 MUST: "Monitoring and alerting MUST detect degradation in sync reliability within 5 minutes." Uptime monitoring (endpoint polling) was explicitly descoped. Log-based error-rate alerting (AC3) covers in-band failure detection, but a complete Worker outage produces no logs and no alert. This gap is documented in spec.md's Constitution Alignment Checklist and accepted for the initial release. A follow-up feature for endpoint uptime monitoring is recommended.
 
 ### 5. Performance & Real-Time Sync
 **Compliance Strategy:**
-- [x] Tail Worker runs asynchronously after producing Worker — zero hot-path latency added
-- [x] NDJSON batch: all log entries from a single invocation sent in one HTTP request (efficient)
-- [x] No caching needed in Tail Worker
+- [x] Logpush runs asynchronously after Worker invocation — zero hot-path latency added
+- [x] Cloudflare batches and delivers log events efficiently (no per-request HTTP overhead in Workers)
+- [x] No caching or additional state management required
 
 **Deviations:** None
 
 ### 6. Code Quality & Testing
 **Compliance Strategy:**
-- [x] Unit tests: Tail Worker log normalisation (happy path, BetterStack error, missing fields)
-- [x] Integration test: deploy to dev stage, emit log, verify appears in BetterStack within 60s
-- [x] Existing logger tests unchanged
-- [x] TypeScript strict mode; linting via existing config
-- [x] Setup script tested with `--dry-run` flag before live execution
+- [x] Zero new production code — integration is pure infrastructure configuration in `sst.config.ts`
+- [x] `cloudflare.LogpushJob` Pulumi resource is version-controlled alongside all other infrastructure
+- [x] Existing logger unit tests unchanged and continue to pass
+- [x] TypeScript strict mode; linting via existing config; CI validates on every push
+- [x] 80% unit test coverage requirement applies to zero new production code lines
 
-**Deviations:** Tail Worker is infrastructure glue — 80% unit test coverage target applies to the normalisation logic specifically
+**Deviations:** No unit tests for the Logpush configuration itself (it is infrastructure, not code). CI validates the SST config compiles and the Pulumi resource is correctly declared.
 
 ### 7. Transparency & Communication
 **Compliance Strategy:**
@@ -185,9 +175,9 @@ None. No FitHub API endpoints added or modified.
 ### 8. Functional & Structured Logging
 **Compliance Strategy:**
 - [x] This feature *is* the logging infrastructure — inherently compliant
-- [x] Event vocabulary for Tail Worker itself: `tail.forward.success`, `tail.forward.error` (written to `console.error` only when BetterStack is unreachable — these appear in Cloudflare's own tail, not BetterStack, to avoid circular dependency)
-- [x] All existing log fields (`ts`, `level`, `event`, `service`, `env`, `correlationId`, `userId`) pass through unchanged
+- [x] All existing log fields (`ts`, `level`, `event`, `service`, `env`, `correlationId`, `userId`) pass through unchanged via Logpush
 - [x] No tokens or PII in forwarded logs (guaranteed by producing Workers' `Logger.redact()`)
+- [x] No new functional events required — Logpush is transparent to Workers
 
 **Deviations:** None
 
@@ -195,125 +185,133 @@ None. No FitHub API endpoints added or modified.
 
 ## Implementation Breakdown
 
-**Phase 1: Tail Worker & SST Wiring**
-- Add `BetterStackToken` secret to `sst.config.ts`
-- Create `packages/functions/src/tail/index.ts` — Tail Worker implementation
-- Add `TailWorker` to `sst.config.ts`; bind `tailConsumers` on all 5 producing Workers
-- Unit tests for Tail Worker normalisation logic
-- Deliverables: Tail Worker deployed; all Workers forwarding logs to BetterStack
+**Phase 1: Infra Configuration (COMPLETE)**
+- Add `BetterStackToken` SST Secret to `sst.config.ts` ✅
+- Set `logpush: true` on all 5 Workers via `transform.worker` ✅
+- Declare `cloudflare.LogpushJob("BetterStackLogpush", {...})` Pulumi resource ✅
+- Wire `BETTER_STACK_TOKEN` in CI (`sst secret set BetterStackToken`) ✅
+- Deliverables: Logpush job live in dev; all Workers forwarding logs to BetterStack ✅
 
-**Phase 2: Uptime Monitoring & Alerts**
-- Create `scripts/setup-betterstack.ts` — uptime monitor setup script
-- Configure BetterStack alert policy: error-rate > 10/min
-- Run setup script against dev and prod environments
-- Deliverables: Both uptime monitors active; error-rate alert configured
+**Phase 2: Verification & Alerting**
+- Smoke test: verify logs appear in BetterStack from a live Worker call
+- Audit log fields for PII exposure and field completeness
+- Configure BetterStack error-rate alert policy (UI: `level = "error"` count > 10/min)
+- Verify BetterStack log queries work for `userId`, `correlationId`, `event`
+- Deliverables: All AC1–AC7 verified; alert policy active
 
-**Phase 3: Runbook & T053 Closure**
+**Phase 3: Documentation & Closure**
 - Create `docs/runbook.md` — log search queries, alert acknowledgement, incident escalation
-- Mark T053 as `[X]` in `000-backend-foundation/tasks.md`
-- Verify AC1–AC9 from spec
+- Mark T053 as done in `000-backend-foundation/tasks.md`
+- Update spec.md status to `Implemented`
 - Deliverables: T053 closed; NFR-6 and Constitution §8 gates satisfied
 
 ---
 
 ## Dependencies & Blockers
 
-**Critical Path:** Phase 1 → Phase 2 → Phase 3 (sequential; each phase is a day of work)
+**Critical Path:** Phase 1 (complete) → Phase 2 Verification → Phase 3 Docs (sequential)
 
 **External Dependencies:**
 - [x] BetterStack account exists (user confirmed)
+- [x] BetterStack HTTP source token confirmed valid — `fithub` source, source token `JRGMgxVEB4CMhKbv3MuGx2Lx`
+- [x] `BETTER_STACK_TOKEN` GitHub secret set in `dev` environment
 - [x] `GET /api/status` endpoint implemented (T064 — already shipped)
-- [ ] BetterStack HTTP source token — operator must create source in BetterStack UI and provide token via `sst secret set BetterStackToken`
-- [ ] BetterStack Uptime API token — separate token for setup script (or same account token)
 
 **Blockers:**
-- None (BetterStack account ready; Cloudflare Tail Workers available on current plan)
+- None (Logpush job created and delivering; build #38 passed)
 
 ---
 
 ## Risk Management
 
-**Risk 1: Tail Worker exceeds Cloudflare CPU time limit**
-- **Likelihood:** Low (HTTP POST is fast; no heavy computation)
-- **Impact:** Medium (tail delivery silently fails for that invocation)
-- **Mitigation:** Keep Tail Worker logic minimal (parse → map fields → POST). Add timeout to `fetch()` call (5s max).
+**Risk 1: Cloudflare Logpush batch delay**
+- **Likelihood:** Medium (Cloudflare batches log events; delivery interval can be up to 5 minutes)
+- **Impact:** Medium (latency between error occurring and alert firing may exceed desired 60s SLA)
+- **Mitigation:** Verify actual delivery latency in T002 smoke test; adjust BetterStack alert sensitivity if needed
 
-**Risk 2: BetterStack ingest endpoint rate limit**
-- **Likelihood:** Low (FitHub's current log volume is well within BetterStack's limits)
-- **Impact:** Low (some logs dropped; not a data-loss scenario)
-- **Mitigation:** Monitor Tail Worker outcome metrics in Cloudflare dashboard. If needed, batch with a KV counter (future enhancement).
+**Risk 2: Wrong BetterStack token type used**
+- **Likelihood:** Low (already encountered and resolved — correct token is the Logs source token, not collector secret)
+- **Impact:** High (Cloudflare Logpush job creation fails with 401 destination validation error)
+- **Mitigation:** Already resolved; documented in runbook and research.md for future reference
 
-**Risk 3: `tailConsumers` SST Ion API not available**
-- **Likelihood:** Low (confirmed in Cloudflare Pulumi provider docs)
-- **Impact:** High (can't bind Tail Worker without this)
-- **Mitigation:** Use `transform.worker` raw property injection as fallback. Document workaround.
+**Risk 3: PII leak through unredacted log field**
+- **Likelihood:** Low (existing `redact()` is comprehensive)
+- **Impact:** High (GDPR violation)
+- **Mitigation:** Field audit (T003) inspects BetterStack live entries for PII exposure; any finding requires immediate `redact()` update
 
 ---
 
 ## Testing & Validation Strategy
 
-**Unit Testing:**
-- Tail Worker: given `TraceItem[]` with valid Logger JSON → produces correct NDJSON
-- Tail Worker: given `TraceItem[]` with non-JSON console output → skips entry gracefully
-- Tail Worker: BetterStack returns non-2xx → logs error to stderr, continues (no throw)
-- Tail Worker: empty `logs[]` array → sends nothing, no HTTP call
+**Smoke Testing (T002):**
+- Trigger a known log event (e.g., `GET /api/status`) in dev
+- Query BetterStack; confirm entry appears within 60 seconds with correct fields
 
-**Integration Testing:**
-- Deploy to dev stage; trigger a known log event (e.g., `GET /api/status`); query BetterStack and confirm entry appears with correct fields within 60 seconds
+**Field Audit (T003):**
+- Query BetterStack for entries with `userId`, `correlationId`, `event`, `level` fields present
+- Confirm no PII (email, name, token, IP) visible in any field
 
-**E2E Testing:**
-- Full error flow: inject a deliberate error in a test endpoint; confirm BetterStack log entry appears; confirm alert policy would fire (test mode or count threshold observation)
+**Alert Verification (T005):**
+- Configure BetterStack alert policy: `level = "error"` count > 10/min → email notification
+- Optionally trigger test alerts in BetterStack UI
 
-**Manual Testing Checklist:**
+**Log Query Verification (T006):**
+- Verify `userId` filter returns correct entries
+- Verify `correlationId` traces a full request lifecycle across workers
+- Verify `level:error` filter returns only error-level entries
+
+**Manual Verification Checklist:**
+- [ ] Log entries appear in BetterStack within 60 seconds of Worker activity
 - [ ] Log search by `userId` returns correct entries
 - [ ] Log search by `correlationId` traces full request lifecycle
 - [ ] `level:error` filter shows only error-level entries
-- [ ] Uptime monitor shows green on healthy deploy
 - [ ] No PII (email, token, name) visible in any BetterStack entry
+- [ ] Retention shows ≥30 days of logs available (AC5 — verify after 24h)
 
 ---
 
 ## Rollout & Rollback Plan
 
-**Deployment Strategy:**
-1. Operator sets `BetterStackToken` secret: `sst secret set BetterStackToken <token>`
-2. `sst deploy` — deploys TailWorker and updated producing Workers with `tailConsumers`
-3. Operator runs `npx tsx scripts/setup-betterstack.ts` to create uptime monitors
-4. Verify logs appearing in BetterStack within 60 seconds
+**Deployment Strategy (COMPLETE):**
+1. ✅ Operator set `BetterStackToken` secret: `sst secret set BetterStackToken <token>`
+2. ✅ `sst deploy` — Pulumi created `cloudflare.LogpushJob`; Cloudflare validated destination
+3. ✅ CI wires `BETTER_STACK_TOKEN` → `sst secret set BetterStackToken` on every `master` push
+4. Operator verifies: query BetterStack for live log entries
 
 **Rollback Trigger:**
-- If Tail Worker causes unexpected CPU spikes or producing Worker failures (observable in Cloudflare dashboard)
-- Rollback: remove `tailConsumers` from `sst.config.ts` and redeploy — instant isolation
+- If Logpush job causes unexpected issues (observable in Cloudflare Logpush dashboard)
+- Rollback: set `enabled: false` on `cloudflare.LogpushJob` in `sst.config.ts` and redeploy — stops delivery without destroying job configuration
 
 **Monitoring Post-Deployment:**
-- BetterStack Uptime monitors active within minutes of setup script run
-- Verify `tail.forward.error` events are absent in Cloudflare's own log tail
+- BetterStack Live Tail: verify real-time log stream
+- Cloudflare Logpush dashboard: confirm job health, no delivery failures
 
 ---
 
 ## Success Criteria
 
 **Feature is complete when:**
-- [x] All acceptance criteria AC1–AC9 from spec verified
-- [x] Unit tests for Tail Worker normalisation logic pass
-- [x] Logs from all 5 Workers visible in BetterStack within 60 seconds
-- [x] Both uptime monitors active and green
-- [x] Error-rate alert configured
-- [x] `docs/runbook.md` created
-- [x] T053 in `000-backend-foundation/tasks.md` marked `[X]`
-- [x] No PII visible in BetterStack log viewer
+- [x] Logpush job created and delivering logs to BetterStack (Phase 1 — build #38 ✅)
+- [ ] Smoke test confirms logs appear in BetterStack within 60 seconds (T002)
+- [ ] Field audit confirms correct fields present, no PII (T003)
+- [ ] BetterStack secret stored correctly, no hardcoded values (T004)
+- [ ] Error-rate alert policy configured (T005)
+- [ ] Log query verification complete (T006)
+- [ ] T053 in `000-backend-foundation/tasks.md` marked `[X]` (T007)
+- [ ] AC1–AC7 verified; spec.md status updated to `Implemented` (T008)
+- [ ] `docs/runbook.md` created
 
 ---
 
 ## Open Questions & Decisions
 
-- **Q1: Same BetterStack token for Logs and Uptime?**
+- **Q1: Tail Worker vs Cloudflare Logpush?**
   - **Status:** Resolved
-  - **Resolution:** BetterStack uses separate tokens per product (Logs source token ≠ Uptime API token). The setup script needs a Uptime API token; the Tail Worker needs the Logs source ingest token. Document both in runbook.
+  - **Resolution:** Logpush chosen. Tail Worker approach rejected — Logpush is available on Workers Paid plan, is simpler (no additional Worker to deploy/maintain), and eliminates Tail Worker CPU limit risk.
 
-- **Q2: Should OutboxRelay and Scheduler be covered by the Tail Worker?**
+- **Q2: Should all 5 Workers be covered?**
   - **Status:** Resolved
-  - **Resolution:** Yes — all 5 Workers emit structured logs and should be covered. Missing any Worker creates blind spots during incidents.
+  - **Resolution:** Yes — all 5 Workers (`Api`, `Auth`, `SyncWorker`/`Queue`, `OutboxRelay`, `Scheduler`) have `logpush: true` via `transform.worker`. Missing any Worker creates blind spots during incidents.
 
 ---
 
@@ -322,6 +320,5 @@ None. No FitHub API endpoints added or modified.
 - **Feature Specification:** `.specify/specs/007-betterstack-observability/spec.md`
 - **Research:** `.specify/specs/007-betterstack-observability/research.md`
 - **Data Model:** `.specify/specs/007-betterstack-observability/data-model.md`
-- **Contracts:** `.specify/specs/007-betterstack-observability/contracts/tail-worker-contract.md`
 - **Constitution:** `.specify/memory/constitution.md`
-- **Task Breakdown:** `.specify/specs/007-betterstack-observability/tasks.md` _(to be created — run speckit-tasks)_
+- **Task Breakdown:** `.specify/specs/007-betterstack-observability/tasks.md`

@@ -12,7 +12,7 @@ This feature introduces no new database tables or schema migrations. It is a pur
 The data flow is:
 
 ```
-FitHub Workers → console.* (structured JSON) → Tail Worker → BetterStack Logs
+FitHub Workers → console.* (structured JSON) → Cloudflare Logpush → BetterStack Logs
 ```
 
 All entities are external (BetterStack-managed) or existing (FitHub `Logger` output).
@@ -43,25 +43,6 @@ LogEntry {
 
 ---
 
-## Tail Worker Event Shape (Cloudflare → Tail Worker)
-
-```
-TraceItem {
-  scriptName:  string           (Cloudflare Worker name — e.g. "fithub-Api")
-  outcome:     "ok" | "exception" | "exceededCpu" | "canceled" | "unknown"
-  logs:        TraceLog[]
-  exceptions:  TraceException[]
-}
-
-TraceLog {
-  message:   unknown[]   (console.* arguments — [0] is our JSON string)
-  level:     string      ("log" | "warn" | "error" | "debug")
-  timestamp: number      (Unix milliseconds)
-}
-```
-
----
-
 ## BetterStack Log Source (external, operator-configured)
 
 | Attribute     | Value                                    |
@@ -74,15 +55,6 @@ TraceLog {
 
 ---
 
-## BetterStack Uptime Monitors (external, created via setup script)
-
-| Monitor         | URL                                         | Interval | Alert after |
-|-----------------|---------------------------------------------|----------|-------------|
-| FitHub API      | `https://api.fithub.space/api/status`       | 1 min    | 2 failures  |
-| FitHub Auth     | `https://auth.fithub.space`                 | 1 min    | 2 failures  |
-
----
-
 ## Schema Migrations
 
 None. This feature requires no D1 database migrations.
@@ -91,10 +63,10 @@ None. This feature requires no D1 database migrations.
 
 ## New SST Resources
 
-| Resource              | Type              | Purpose                                    |
-|-----------------------|-------------------|--------------------------------------------|
-| `TailWorker`          | `sst.cloudflare.Worker` | Receives tail events; forwards to BetterStack |
-| `BetterStackToken`    | `sst.Secret`      | BetterStack HTTP source ingest token       |
+| Resource              | Type                         | Purpose                                    |
+|-----------------------|------------------------------|--------------------------------------------|
+| `BetterStackToken`    | `sst.Secret`                 | BetterStack HTTP source ingest token       |
+| `BetterStackLogpush`  | `cloudflare.LogpushJob`      | Delivers Workers trace events to BetterStack HTTPS endpoint |
 
 ---
 
