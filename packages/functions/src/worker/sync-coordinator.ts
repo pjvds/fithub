@@ -8,7 +8,6 @@ export interface ConnectionSyncState {
 }
 
 export interface SyncCoordinatorState {
-  userId: string;
   connections: Record<string, ConnectionSyncState>;
   schemaVersion: number;
 }
@@ -30,14 +29,13 @@ export class UserSyncCoordinator {
 
   constructor(
     private readonly ctx: DurableObjectState,
-    private readonly userId: string = "",
+    _env: unknown,
   ) {}
 
   private async load(): Promise<SyncCoordinatorState> {
     if (this.state) return this.state;
     const stored = await this.ctx.storage.get<SyncCoordinatorState>("state");
     this.state = stored ?? {
-      userId: this.userId,
       connections: {},
       schemaVersion: SCHEMA_VERSION,
     };
