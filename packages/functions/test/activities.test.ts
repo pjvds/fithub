@@ -105,35 +105,35 @@ describe("activities router", () => {
     app = await buildApp();
   });
 
-  it("GET / returns 200 with items and null nextCursor when results < limit", async () => {
+  it("GET / returns 200 with activities and null next_cursor when results < limit", async () => {
     const res = await app.request("/activities");
     expect(res.status).toBe(200);
-    const body = await res.json() as { items: unknown[]; nextCursor: string | null };
-    expect(body.items).toHaveLength(2);
-    expect(body.nextCursor).toBeNull();
+    const body = await res.json() as { activities: unknown[]; next_cursor: string | null };
+    expect(body.activities).toHaveLength(2);
+    expect(body.next_cursor).toBeNull();
   });
 
   it("GET / respects limit query param", async () => {
     const res = await app.request("/activities?limit=1");
     expect(res.status).toBe(200);
-    const body = await res.json() as { items: unknown[]; nextCursor: string | null };
-    // limit+1 fetch returns 2 rows, so first 1 shown with nextCursor
-    expect(body.items).toHaveLength(1);
-    expect(body.nextCursor).not.toBeNull();
+    const body = await res.json() as { activities: unknown[]; next_cursor: string | null };
+    // limit+1 fetch returns 2 rows, so first 1 shown with next_cursor
+    expect(body.activities).toHaveLength(1);
+    expect(body.next_cursor).not.toBeNull();
   });
 
   it("GET / with cursor applies timestamp filter", async () => {
     const res = await app.request("/activities?cursor=1709125200000");
     expect(res.status).toBe(200);
-    const body = await res.json() as { items: unknown[] };
-    expect(Array.isArray(body.items)).toBe(true);
+    const body = await res.json() as { activities: unknown[] };
+    expect(Array.isArray(body.activities)).toBe(true);
   });
 
   it("GET / with platform filter returns only matching activities", async () => {
     // No sources loaded — all filtered out
     const res = await app.request("/activities?platform=strava");
     expect(res.status).toBe(200);
-    const body = await res.json() as { items: unknown[] };
-    expect(Array.isArray(body.items)).toBe(true);
+    const body = await res.json() as { activities: unknown[] };
+    expect(Array.isArray(body.activities)).toBe(true);
   });
 });
