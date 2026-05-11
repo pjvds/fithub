@@ -98,7 +98,7 @@ export default $config({
     // Sync worker — queue consumer for sync-jobs and retry-jobs
     const syncWorker = new sst.cloudflare.Worker("SyncWorker", {
       handler: "packages/functions/src/worker/index.ts",
-      link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientSecret],
+      link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientId, stravaClientSecret],
       transform: {
         worker: {
           logpush: true,

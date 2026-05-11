@@ -52,6 +52,7 @@ export default {
       BlobStore: R2Bucket;
       FeedCache: KVNamespace;
       TOKEN_MASTER_KEY: { value: string };
+      STRAVA_CLIENT_ID?: { value: string };
       STRAVA_CLIENT_SECRET?: { value: string };
       App?: { stage?: string };
     };
@@ -341,6 +342,7 @@ function parseActivity(
 async function resolveAdapter(
   platform: string,
   r: {
+    STRAVA_CLIENT_ID?: { value: string };
     STRAVA_CLIENT_SECRET?: { value: string };
     [key: string]: unknown;
   },
@@ -348,7 +350,7 @@ async function resolveAdapter(
   if (platform === "strava") {
     const { createStravaAdapter } = await import("@fithub/core");
     return createStravaAdapter({
-      clientId: "fithub",
+      clientId: r.STRAVA_CLIENT_ID?.value ?? "",
       clientSecret: r.STRAVA_CLIENT_SECRET?.value ?? "",
     });
   }
