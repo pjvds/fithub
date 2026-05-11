@@ -21,12 +21,12 @@ const FEED_CACHE_TTL_SECONDS = 300;
 
 /** Build a deterministic KV key for a given set of query params. */
 function feedCacheKey(userId: string, cursor: string | undefined, limit: number, platform: string | undefined): string {
-  return `feed:v1:${userId}:${cursor ?? ""}:${limit}:${platform ?? ""}`;
+  return `feed:v2:${userId}:${cursor ?? ""}:${limit}:${platform ?? ""}`;
 }
 
 /** Delete all feed cache entries for a user (called on new activity ingest). */
 export async function invalidateUserFeedCache(kv: KVNamespace, userId: string): Promise<void> {
-  const prefix = `feed:v1:${userId}:`;
+  const prefix = `feed:v2:${userId}:`;
   let cursor: string | null = null;
   do {
     const page: KVNamespaceListResult<unknown, string> = await kv.list({ prefix, ...(cursor ? { cursor } : {}), limit: 100 });
@@ -122,28 +122,33 @@ export function createActivitiesRouter(): Hono<AppEnv> {
         )
       : page;
 
-    const items = filtered.map((row) => ({
-      id: row.id,
-      activityType: row.activityType,
-      startedAt: row.startedAt instanceof Date
-        ? row.startedAt.toISOString()
-        : new Date(row.startedAt as number).toISOString(),
-      durationSeconds: row.durationSeconds,
-      distanceMeters: row.distanceMeters,
-      title: row.title,
-      sources: sourcesByActivity.get(row.id) ?? [],
-    }));
+    const toEpochSeconds = (v: Date | number): number =>
+      v instanceof Date ? Math.floor(v.getTime() / 1000) : Math.floor((v as number) / 1000);
 
+    const activities_out = filtered.map((row) => {
+      const rowSources = sourcesByActivity.get(row.id) ?? [];
+      return {
+        id: row.id,
+        type: row.activityType,
+        started_at: toEpochSeconds(row.startedAt as Date | number),
+        ended_at: toEpochSeconds(row.startedAt as Date | number) + (row.durationSeconds ?? 0),
+        duration_s: row.durationSeconds ?? 0,
+        distance_m: row.distanceMeters ?? null,
+        calories_kcal: null,
+        avg_heart_rate: null,
+        primary_source: (rowSources[0]?.platform ?? "strava") as "strava" | "apple_health",
+        dedup_group_id: null,
+        sources: rowSources,
+      };
+    });
+
+    const lastRow = filtered[filtered.length - 1];
     const nextCursor =
-      hasMore && filtered.length > 0
-        ? String(
-            filtered[filtered.length - 1]!.startedAt instanceof Date
-              ? (filtered[filtered.length - 1]!.startedAt as Date).getTime()
-              : (filtered[filtered.length - 1]!.startedAt as unknown as number),
-          )
+      hasMore && lastRow != null
+        ? String(toEpochSeconds(lastRow.startedAt as Date | number) * 1000)
         : null;
 
-    const body = { items, nextCursor };
+    const body = { activities: activities_out, next_cursor: nextCursor };
 
     // Populate KV cache for this page (best-effort, fire-and-forget).
     if (kv) {
