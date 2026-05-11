@@ -8,7 +8,7 @@ import {
   connections,
   syncJobs,
   createLogger,
-  decryptToken,
+  maybeRefreshToken,
   ErrorCode,
   LogEvent,
   newCloudEvent,
@@ -128,13 +128,11 @@ export default {
           continue;
         }
 
-        const accessToken = await decryptToken(connRow.accessTokenCipher, masterKey);
-
         // Read cursor from connection row for incremental sync
         const cursor = connRow.syncCursor ?? null;
         const since = cursor ? new Date(parseInt(cursor, 10)) : undefined;
 
-        // Resolve adapter from platform type
+        // Resolve adapter from platform type (needed before token refresh)
         const adapter = await resolveAdapter(job.platform, r);
         const budget = new RateLimitBudget();
 
@@ -145,6 +143,9 @@ export default {
           msg.ack();
           continue;
         }
+
+        // Refresh token if near expiry before fetching activities
+        const accessToken = await maybeRefreshToken(db, job.connectionId, adapter, masterKey, log);
 
         budget.decrement();
         const rawActivities = await adapter.fetchActivities(accessToken, since);
