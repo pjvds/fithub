@@ -258,7 +258,7 @@ After:  authMiddleware({ client: OpenAuthClient }) → calls client.verify(subje
 - [x] Correlation: Correlation ID propagated from web middleware through API worker.
 - [x] Audit vs. Operational: `auth.signup` and `auth.signout` are audit-relevant events.
 
-**Deviations:** None.
+**Deviations:** The constitution MUST requires audit-relevant events to be persisted via an audit log module. No such module currently exists in the FitHub codebase. For feat-008, auth events (`auth.signup`, `auth.signin`, `auth.signout`) are emitted as operational structured logs only. Persistence to a dedicated audit sink is deferred to a future cross-feature implementation. (Mirrors spec.md Known Deviation, section Constitution Alignment Checklist.)
 
 ---
 

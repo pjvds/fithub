@@ -6,7 +6,7 @@
 
 **Version:** 1.0.0
 
-**Status:** Draft
+**Status:** Approved
 
 **Authored By:** speckit-specify
 
@@ -70,13 +70,13 @@ so that others using my device cannot access my FitHub account.
 - [x] User data is encrypted at rest
 - [x] Data transmission uses TLS
 - [x] User consent is explicit and revocable — sign-in is opt-in; users can delete their account
-- [x] Third-party sign-in providers (Google, Apple) are established, vetted platforms
-- **Notes:** Email addresses are nullable to support Apple's private email relay. No passwords are stored (magic-link approach eliminates credential-stuffing risk). Identity stays on FitHub infrastructure — provider only confirms identity, never sees FitHub activity data.
+- [x] **v1 scope:** Email magic-link only. No third-party identity providers (Google, Apple) in this release. Provider integration is explicitly deferred.
+- **Notes:** No passwords are stored (magic-link approach eliminates credential-stuffing risk). Identity stays on FitHub infrastructure. Future social provider integration requires explicit account-merge strategy and privacy policy update.
 
 ### ✅ Cross-Platform Integration
-- [x] Follows OAuth 2.0 / OIDC standards for provider integrations
-- [x] Conflict detection: if a user signs in via two different providers with the same email, accounts are merged safely
-- **Notes:** This feature integrates with identity providers (Apple, Google), not fitness platforms. Standard OAuth PKCE flow applies.
+- [x] Follows OAuth 2.0 / OIDC standards for token issuance via OpenAuth.js
+- [x] **v1 scope:** Single email-code provider only. Multi-provider conflict detection (same email via two providers) is deferred to a future spec.
+- **Notes:** This feature uses OpenAuth.js as the issuer; it does not integrate with external identity providers in v1. Standard OAuth PKCE flow applies to the client side.
 
 ### ✅ User Experience & Simplicity
 - [x] Sign-in completable in under 2 minutes
@@ -106,7 +106,7 @@ so that others using my device cannot access my FitHub account.
 - **Notes:** Apple Sign-In requires a visible privacy policy link; this must be in place before enabling Apple provider.
 
 ### ✅ Functional & Structured Logging
-- [x] Key events logged: `auth.signup`, `auth.signin`, `auth.signout`, `auth.token.rejected`, `auth.magiclink.sent`, `auth.magiclink.expired`
+- [x] Key events logged: `auth.signup`, `auth.signin`, `auth.signout`, `auth.token.rejected`, `auth.magiclink.sent`, `auth.magiclink.expired`, `auth.magiclink.send_failed`
 - [x] No tokens, email content, or magic-link codes appear in logs
 - [x] `error`-level logs carry typed error codes
 - **Notes:** `userId` is the only PII allowed in structured logs. Email address must never appear in logs.
@@ -156,6 +156,8 @@ so that others using my device cannot access my FitHub account.
   - The API worker verifies tokens by calling `client.verify(subjects, token)` via service binding; JWKS discovery is handled automatically
 
 ### Architecture & Components
+
+> **See also:** `specs/008-openauth-worker/plan.md` contains a detailed annotated version of this diagram with phase-by-phase flow notes.
 
 ```
 Browser / Web App                    Auth Worker                  API Worker
@@ -301,5 +303,5 @@ Browser / Web App                    Auth Worker                  API Worker
 - Backend Foundation Plan (Decision 9): `.specify/specs/000-backend-foundation/plan.md`
 - Web Frontend Spec: `.specify/specs/005-web-frontend/spec.md`
 - CI/CD Pipeline Spec: `specs/006-cicd-deploy-pipeline/spec.md`
-- Implementation Plan: `specs/008-openauth-worker/plan.md` (to be created)
-- Task Breakdown: `specs/008-openauth-worker/tasks.md` (to be created)
+- Implementation Plan: `specs/008-openauth-worker/plan.md`
+- Task Breakdown: `specs/008-openauth-worker/tasks.md`
