@@ -51,7 +51,7 @@ export default {
       RetryJobs: Queue<SyncJobMessage>;
       BlobStore: R2Bucket;
       FeedCache: KVNamespace;
-      TokenMasterKey: { value: () => string };
+      TOKEN_MASTER_KEY: { value: string };
       App?: { stage?: string };
     };
     const db = drizzle(r.FithubDb);
@@ -96,7 +96,7 @@ export default {
           continue;
         }
 
-        const masterKey = r.TokenMasterKey.value();
+        const masterKey = r.TOKEN_MASTER_KEY.value;
         const connRow = await db
           .select()
           .from(connections)
