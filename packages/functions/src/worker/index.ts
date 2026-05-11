@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { Resource } from "sst";
 import {
   activities,
@@ -40,15 +40,10 @@ export interface SyncJobMessage {
   correlationId?: string;
 }
 
-type WorkerEnv = {
-  USER_SYNC_COORDINATOR: DurableObjectNamespace;
-  TokenMasterKey: { value: () => string };
-};
-
 export default {
   async queue(
     batch: MessageBatch<SyncJobMessage>,
-    env: WorkerEnv,
+    _env: unknown,
   ): Promise<void> {
     const r = Resource as unknown as {
       FithubDb: D1Database;
@@ -70,23 +65,21 @@ export default {
       log.info(LogEvent.syncJobStarted, { userId: job.userId, platform: job.platform, attempt: job.attempt });
 
       try {
-        const doId = env.USER_SYNC_COORDINATOR.idFromName(job.userId);
-        const doStub = env.USER_SYNC_COORDINATOR.get(doId);
+        // Acquire in-flight lock atomically. rowsAffected === 0 means another job holds it.
+        const lockResult = await db
+          .update(connections)
+          .set({ inFlightJobId: job.jobId })
+          .where(
+            and(
+              eq(connections.id, job.connectionId),
+              eq(connections.userId, job.userId),
+              eq(connections.status, "active"),
+              isNull(connections.inFlightJobId),
+            ),
+          )
+          .run();
 
-        const beginResp = await doStub.fetch(
-          new Request(
-            `https://do/sync?platform=${job.platform}`,
-            {
-              method: "POST",
-              body: JSON.stringify({ action: "beginSync", jobId: job.jobId }),
-            },
-          ),
-        );
-        const beginResult = (await beginResp.json()) as
-          | { jobId: string }
-          | { error: "already_in_flight" };
-
-        if ("error" in beginResult) {
+        if (lockResult.meta.rows_written === 0) {
           log.info(LogEvent.syncJobFailed, {
             userId: job.userId,
             platform: job.platform,
@@ -118,26 +111,20 @@ export default {
             jobId: job.jobId,
             reason: "connection_not_found",
           });
-          await doStub.fetch(
-            new Request(`https://do/sync?platform=${job.platform}`, {
-              method: "POST",
-              body: JSON.stringify({ action: "failSync", jobId: job.jobId }),
-            }),
-          );
+          // Release the lock we just acquired
+          await db
+            .update(connections)
+            .set({ inFlightJobId: null })
+            .where(eq(connections.id, job.connectionId))
+            .run();
           msg.ack();
           continue;
         }
 
         const accessToken = await decryptToken(connRow.accessTokenCipher, masterKey);
 
-        // Get cursor from DO for incremental sync
-        const cursorResp = await doStub.fetch(
-          new Request(`https://do/sync?platform=${job.platform}`, {
-            method: "POST",
-            body: JSON.stringify({ action: "getCursor" }),
-          }),
-        );
-        const { cursor } = (await cursorResp.json()) as { cursor: string | null };
+        // Read cursor from connection row for incremental sync
+        const cursor = connRow.syncCursor ?? null;
         const since = cursor ? new Date(parseInt(cursor, 10)) : undefined;
 
         // Resolve adapter from platform type
@@ -229,12 +216,12 @@ export default {
           void invalidateUserFeedCache(r.FeedCache, job.userId);
         }
 
-        await doStub.fetch(
-          new Request(`https://do/sync?platform=${job.platform}`, {
-            method: "POST",
-            body: JSON.stringify({ action: "completeSync", jobId: job.jobId, cursor: newCursor }),
-          }),
-        );
+        // Release lock and advance cursor
+        await db
+          .update(connections)
+          .set({ inFlightJobId: null, ...(newCursor !== null ? { syncCursor: newCursor } : {}) })
+          .where(eq(connections.id, job.connectionId))
+          .run();
 
         // Mark job as succeeded in the DB
         await db
@@ -262,6 +249,13 @@ export default {
           attempt: job.attempt,
           err,
         });
+
+        // Release the in-flight lock on failure
+        await db
+          .update(connections)
+          .set({ inFlightJobId: null })
+          .where(eq(connections.id, job.connectionId))
+          .run();
 
         // Only mark as permanently failed if we won't retry
         if (!isTransient || job.attempt >= RETRY_DELAYS_MS.length) {
@@ -339,5 +333,3 @@ async function resolveAdapter(
   }
   throw new Error(`Unknown platform: ${platform}`);
 }
-
-export { UserSyncCoordinator } from "./sync-coordinator.js";

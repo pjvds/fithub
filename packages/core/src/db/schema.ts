@@ -20,6 +20,8 @@ export const connections = sqliteTable(
     scopes: text("scopes"),
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
     status: text("status", { enum: ["active", "degraded", "revoked"] }).notNull().default("active"),
+    syncCursor: text("sync_cursor"),
+    inFlightJobId: text("in_flight_job_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
   },

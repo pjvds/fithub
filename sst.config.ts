@@ -100,20 +100,7 @@ export default $config({
       handler: "packages/functions/src/worker/index.ts",
       link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientSecret],
       transform: {
-        worker: (args) => {
-          args.logpush = true;
-          args.migrations = {
-            tag: "v2",
-          };
-          args.bindings = $resolve([args.bindings]).apply(([bindings]) => [
-            ...(bindings ?? []),
-            {
-              type: "durable_object_namespace",
-              name: "USER_SYNC_COORDINATOR",
-              className: "UserSyncCoordinator",
-            },
-          ]);
-        },
+        worker: { logpush: true },
       },
     });
 
