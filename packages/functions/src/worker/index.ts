@@ -339,3 +339,5 @@ async function resolveAdapter(
   }
   throw new Error(`Unknown platform: ${platform}`);
 }
+
+export { UserSyncCoordinator } from "./sync-coordinator.js";

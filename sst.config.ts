@@ -96,14 +96,38 @@ export default $config({
     });
 
     // Sync worker — queue consumer for sync-jobs and retry-jobs
-    // NOTE: UserSyncCoordinator Durable Object namespace binding must be added
-    // via the Cloudflare dashboard or wrangler.toml transform after first deploy.
     const syncWorker = new sst.cloudflare.Worker("SyncWorker", {
       handler: "packages/functions/src/worker/index.ts",
       link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientSecret],
       transform: {
-        worker: { logpush: true },
+        worker: (args) => {
+          args.logpush = true;
+          args.bindings = $resolve([args.bindings]).apply(([bindings]) => [
+            ...(bindings ?? []),
+            {
+              type: "durable_object_namespace",
+              name: "USER_SYNC_COORDINATOR",
+              className: "UserSyncCoordinator",
+            },
+          ]);
+        },
       },
+    });
+
+    new cloudflare.QueueConsumer("SyncJobsConsumer", {
+      accountId: sst.cloudflare.DEFAULT_ACCOUNT_ID,
+      queueId: syncJobs.nodes.queue.id,
+      scriptName: syncWorker.nodes.worker.scriptName,
+      settings: { batchSize: 10, maxWaitTimeMs: 5000, maxRetries: 3 },
+      type: "worker",
+    });
+
+    new cloudflare.QueueConsumer("RetryJobsConsumer", {
+      accountId: sst.cloudflare.DEFAULT_ACCOUNT_ID,
+      queueId: retryJobs.nodes.queue.id,
+      scriptName: syncWorker.nodes.worker.scriptName,
+      settings: { batchSize: 10, maxWaitTimeMs: 5000, maxRetries: 3 },
+      type: "worker",
     });
 
     // Cloudflare Logpush job — ships workers_trace_events to BetterStack Logs
