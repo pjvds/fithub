@@ -103,8 +103,7 @@ export default $config({
         worker: (args) => {
           args.logpush = true;
           args.migrations = {
-            tag: "v1",
-            newClasses: ["UserSyncCoordinator"],
+            tag: "v2",
           };
           args.bindings = $resolve([args.bindings]).apply(([bindings]) => [
             ...(bindings ?? []),
