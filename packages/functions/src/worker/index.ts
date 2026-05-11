@@ -52,6 +52,7 @@ export default {
       BlobStore: R2Bucket;
       FeedCache: KVNamespace;
       TOKEN_MASTER_KEY: { value: string };
+      STRAVA_CLIENT_SECRET?: { value: string };
       App?: { stage?: string };
     };
     const db = drizzle(r.FithubDb);
@@ -339,7 +340,7 @@ function parseActivity(
 async function resolveAdapter(
   platform: string,
   r: {
-    StravaClientSecret?: { value: () => string };
+    STRAVA_CLIENT_SECRET?: { value: string };
     [key: string]: unknown;
   },
 ): Promise<OAuthPlatformAdapter> {
@@ -347,7 +348,7 @@ async function resolveAdapter(
     const { createStravaAdapter } = await import("@fithub/core");
     return createStravaAdapter({
       clientId: "fithub",
-      clientSecret: (r.StravaClientSecret as { value: () => string })?.value() ?? "",
+      clientSecret: r.STRAVA_CLIENT_SECRET?.value ?? "",
     });
   }
   throw new Error(`Unknown platform: ${platform}`);
