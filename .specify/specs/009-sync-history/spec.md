@@ -10,13 +10,27 @@ Use this template for all feature specifications in FitHub. Ensure alignment wit
 
 **Feature ID:** feat-009-sync-history
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
-**Status:** Draft
+**Status:** Implemented
 
 **Authored By:** Copilot
 
 **Date:** 2025-07-14
+
+---
+
+## Clarifications
+
+### Session 2026-05-11 (initial)
+
+- Q: Should `sst.config.ts` be listed in Component Changes and the queue consumer binding be a first-class acceptance criterion (ensuring sync jobs actually process end-to-end)? → A: Yes — `sst.config.ts` added to Component Changes; acceptance criterion added requiring triggered jobs to progress from `pending` to `success` or `failed`.
+- Q: Should the `USER_SYNC_COORDINATOR` Durable Object binding be treated as a required infrastructure step (blocking delivery) rather than a known v1 limitation? → A: Originally yes, but superseded — the `UserSyncCoordinator` Durable Object was removed entirely. Duplicate-sync prevention is now implemented via an atomic `UPDATE … WHERE in_flight_job_id IS NULL` on the `connections` table (D1). This avoids the extra HTTP round-trips, special infra migration tag, and DO class export that the DO approach required. See Session 2026-05-11 update below.
+
+### Session 2026-05-11 (update: DO → D1 refactor)
+
+- The `UserSyncCoordinator` Durable Object was removed and replaced with two new columns on the `connections` table: `in_flight_job_id` (nullable, used as an atomic lock via `UPDATE … WHERE in_flight_job_id IS NULL`) and `sync_cursor` (pagination cursor read alongside the access token). The DO added 3–4 HTTP round-trips per sync job and required a dedicated infra migration tag, explicit namespace binding in `sst.config.ts`, and an exported class from the worker entry point. The D1-column approach achieves the same duplicate-sync prevention with a single DB write at zero extra latency.
+- `drizzle/migrations/0003_add_connection_sync_state.sql` carries the DDL for the two new columns.
 
 ---
 
@@ -75,6 +89,7 @@ so that I can quickly assess data freshness without navigating to the history pa
 - [ ] The history list supports pagination (cursor-based) to handle large histories.
 - [ ] Sync history is scoped to the authenticated user — no cross-user data leakage.
 - [ ] All sync job data persists across server restarts and page reloads.
+- [ ] A triggered sync job progresses from `pending` to `success` or `failed` — the queue worker is registered as a consumer of the `SyncJobs` queue and actively receives messages (verified end-to-end, not just by enqueueing).
 
 ---
 
@@ -163,7 +178,7 @@ so that I can quickly assess data freshness without navigating to the history pa
 ### Technical Constraints
 
 - **Platform Compatibility:** Web only (Astro SSR + React islands)
-- **API/Service Dependencies:** Cloudflare D1 (SQLite), Cloudflare Queue Worker
+- **API/Service Dependencies:** Cloudflare D1 (SQLite), Cloudflare Queue Worker (consumer binding required). Duplicate-sync prevention uses an atomic D1 `UPDATE … WHERE in_flight_job_id IS NULL` — no Durable Object required.
 - **Data Format/Schema Changes:** New `sync_jobs` table; `connections` table unchanged; user profile endpoint extended with `last_synced_at` derived field
 - **Performance Requirements:** History query returns in <200ms for users with up to 1,000 jobs (indexed by user_id)
 - **Security/Compliance:** All history queries enforce `userId` from verified JWT — no query parameter override possible
@@ -183,17 +198,22 @@ so that I can quickly assess data freshness without navigating to the history pa
   |
 [Queue Worker]
   |-- process message
-  |     ├─→ Strava API fetch activities
+  |     ├─→ UPDATE connections SET in_flight_job_id = jobId WHERE in_flight_job_id IS NULL (atomic lock)
+  |     │     └─ rows_written === 0 → skip (another job already in flight)
+  |     ├─→ Strava API fetch activities (using sync_cursor from connections row)
   |     ├─→ INSERT activities
-  |     └─→ UPDATE sync_jobs SET status=success|failed, ended_at, activities_synced|error_message
+  |     ├─→ UPDATE sync_jobs SET status=success|failed, ended_at, activities_synced|error_message
+  |     └─→ UPDATE connections SET in_flight_job_id = NULL (release lock)
 ```
 
 **Component Changes:**
-- `packages/core/src/db/schema.ts`: Add `syncJobs` Drizzle table definition
-- `drizzle/migrations/0002_add_sync_jobs.sql`: DDL migration
+- `packages/core/src/db/schema.ts`: Add `syncJobs` Drizzle table definition; add `inFlightJobId` and `syncCursor` columns to `connections` table
+- `drizzle/migrations/0002_add_sync_jobs.sql`: DDL migration for `sync_jobs` table
+- `drizzle/migrations/0003_add_connection_sync_state.sql`: DDL migration adding `in_flight_job_id` and `sync_cursor` columns to `connections`
 - `packages/functions/src/api/routes/sync.ts`: History queries DB; trigger INSERTs row
-- `packages/functions/src/worker/index.ts`: UPDATEs job on completion/failure
+- `packages/functions/src/worker/index.ts`: Acquires in-flight lock via atomic D1 UPDATE; UPDATEs job on completion/failure; releases lock on completion
 - `packages/functions/src/api/routes/user.ts`: `last_synced_at` derived from most recent success job
+- `sst.config.ts`: Register `SyncWorker` as a queue consumer for both `SyncJobs` and `RetryJobs` queues — without this binding the worker can send to queues but never receives messages, leaving all jobs permanently `pending`
 
 ---
 

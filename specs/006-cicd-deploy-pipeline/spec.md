@@ -134,7 +134,7 @@ so that I never have to run manual local commands before a deployment works.
 - GitHub Actions workflow for dev stage deployment on every push to `master`
 - Secret management via GitHub repository/environment secrets
 - Automated SST app secret seeding from GitHub Environment secrets as part of every deployment (via `sst secret set`)
-- Automatic D1 database migration on every deployment via `scripts/migrate.ts` (idempotent — already-applied migrations are skipped)
+- Automatic D1 database migration on every deployment via `drizzle-kit migrate` (idempotent — already-applied migrations are skipped)
 - Test execution, linting, type checking, and build verification as pipeline steps
 - Coverage report as a pipeline artefact and an inline GitHub Actions step summary
 - Notification of pipeline failure (GitHub native status checks)
@@ -178,14 +178,13 @@ Push to master
     ├─ (Re-runs quality checks for safety)
     ├─ Seed SST app secrets (reads values from GitHub Environment secrets → sst secret set --stage dev)
     ├─ SST deploy --stage dev → Cloudflare
-    └─ Apply D1 migrations (npx sst shell --stage dev npx tsx scripts/migrate.ts)
-         └─ migrate.ts: creates __migrations table, runs each .sql file once, skips already-applied
+    └─ Apply D1 migrations (npx sst shell --stage dev npx drizzle-kit migrate)
+         └─ drizzle-kit migrate: applies pending Drizzle ORM SQL migrations, skips already-applied
 ```
 
 **Component Changes:**
 - `.github/workflows/`: CI/CD workflow file — `deploy-dev` job includes seed step before SST deploy and migration step after deploy
-- `scripts/migrate.ts`: TypeScript D1 migration runner — uses `Resource.FithubDb.databaseId` (injected by `sst shell`) and the Cloudflare REST API to apply SQL migration files idempotently; tracks applied migrations in a `__migrations` table
-- `drizzle/migrations/`: SQL migration files applied by `migrate.ts`
+- `drizzle/migrations/`: SQL migration files applied by `drizzle-kit migrate`
 - `sst.config.ts`: Stages already configured; no changes expected
 - Repository settings: GitHub Environment (`dev`) configured with 7 secrets (2 Cloudflare infra secrets + 5 SST app secrets; 3 auth secrets deferred)
 
