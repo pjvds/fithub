@@ -10,7 +10,7 @@
 
 **Version:** 1.1.0
 
-**Status:** In Development
+**Status:** Partially Complete — 15/16 tasks done; T015 (branch protection on master) pending
 
 **Authored By:** FitHub Team
 
