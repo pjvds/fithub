@@ -86,6 +86,12 @@ export default {
             jobId: job.jobId,
             reason: "already_in_flight",
           });
+          // Mark this job (not the in-flight one) as failed so it doesn't stay pending.
+          await db
+            .update(syncJobs)
+            .set({ status: "failed", errorMessage: "Sync already in progress", endedAt: new Date() })
+            .where(eq(syncJobs.id, job.jobId))
+            .run();
           msg.ack();
           continue;
         }
@@ -227,7 +233,8 @@ export default {
         await db
           .update(syncJobs)
           .set({ status: "success", activitiesSynced: newActivities, endedAt: new Date() })
-          .where(eq(syncJobs.id, job.jobId));
+          .where(eq(syncJobs.id, job.jobId))
+          .run();
 
         log.info(LogEvent.syncJobCompleted, {
           userId: job.userId,
@@ -250,12 +257,23 @@ export default {
           err,
         });
 
-        // Release the in-flight lock on failure
-        await db
-          .update(connections)
-          .set({ inFlightJobId: null })
-          .where(eq(connections.id, job.connectionId))
-          .run();
+        // Release the in-flight lock on failure. Wrapped in try/catch so that
+        // a failure here (e.g. missing column) does not prevent the job from
+        // being marked failed and the message from being acked.
+        try {
+          await db
+            .update(connections)
+            .set({ inFlightJobId: null })
+            .where(eq(connections.id, job.connectionId))
+            .run();
+        } catch (lockErr) {
+          log.error(LogEvent.syncJobFailed, {
+            code: ErrorCode.DB_WRITE_FAILED,
+            jobId: job.jobId,
+            reason: "lock_release_failed",
+            err: lockErr,
+          });
+        }
 
         // Only mark as permanently failed if we won't retry
         if (!isTransient || job.attempt >= RETRY_DELAYS_MS.length) {
@@ -266,7 +284,8 @@ export default {
               errorMessage: err instanceof Error ? err.message : String(err),
               endedAt: new Date(),
             })
-            .where(eq(syncJobs.id, job.jobId));
+            .where(eq(syncJobs.id, job.jobId))
+            .run();
         }
 
         if (isTransient && job.attempt < RETRY_DELAYS_MS.length) {
