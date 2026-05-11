@@ -100,7 +100,13 @@ export default $config({
       handler: "packages/functions/src/worker/index.ts",
       link: [db, syncJobs, retryJobs, blobStore, feedCache, tokenMasterKey, stravaClientSecret],
       transform: {
-        worker: { logpush: true },
+        worker: {
+          logpush: true,
+          // Delete the UserSyncCoordinator DO class that was removed in the DO→D1 refactor.
+          // Cloudflare requires an explicit delete-class migration to deploy a script that
+          // no longer exports a class that has existing DO instances registered.
+          migrations: [{ tag: "v3", deletedClasses: ["UserSyncCoordinator"] }],
+        },
       },
     });
 
