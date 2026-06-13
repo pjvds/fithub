@@ -3,10 +3,13 @@
 // If a session cookie is already present, redirect straight to the dashboard.
 // Otherwise render a minimal sign-in CTA pointing at the Auth Worker.
 import Layout from "../layouts/Layout.astro";
-import { getSession } from "../lib/session";
 
-const session = getSession(Astro.cookies);
-if (session) {
+// If the user has any auth token (access or refresh), send them to the dashboard.
+// The middleware handles full token validation and silent refresh there.
+const hasSession =
+  !!Astro.cookies.get("access_token")?.value ||
+  !!Astro.cookies.get("refresh_token")?.value;
+if (hasSession) {
   return Astro.redirect("/dashboard");
 }
 
